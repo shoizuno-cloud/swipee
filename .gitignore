@@ -1,0 +1,6 @@
+data.json
+__pycache__/
+*.pyc
+server.log
+cloudflared.log
+cloudflared_bin/

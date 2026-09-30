@@ -1,0 +1,2 @@
+# Postgres永続化を使う場合のみ必要(DATABASE_URLが無ければ使われず、data.jsonにフォールバックする)
+psycopg2-binary
