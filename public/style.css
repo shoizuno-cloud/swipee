@@ -77,4 +77,5 @@ header{padding-top:max(14px,env(safe-area-inset-top))}nav{padding-bottom:max(0px
 .modal-steps{text-align:left;margin:16px 0;font-size:.9rem;line-height:1.7;color:var(--fg)}
 .modal-steps b{color:var(--pink)}
 .modal-card .btn{margin-top:4px}
+html[data-reduce-motion="1"] *,html[data-reduce-motion="1"] *::before,html[data-reduce-motion="1"] *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 
