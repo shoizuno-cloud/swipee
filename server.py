@@ -239,14 +239,15 @@ class H(BaseHTTPRequestHandler):
                         {"Authorization": "Basic " + base64.b64encode(f"{CID}:{CSECRET}".encode()).decode()}, form=True)
             if s != 200: return self.redirect("/?err=token")
             s, prof = http("https://api.spotify.com/v1/me", headers={"Authorization": "Bearer " + j["access_token"]})
+            is_new = False
             with LOCK:
                 if uid is None or uid not in DB["users"]:  # Spotifyで新規ログイン/既存ログイン
                     uid = next((x["id"] for x in DB["users"].values() if x.get("spotify", {}).get("id") == prof.get("id")), None)
-                    if not uid: uid = new_user(prof.get("display_name") or prof.get("id"))["id"]
+                    if not uid: uid = new_user(prof.get("display_name") or prof.get("id"))["id"]; is_new = True
                 usr = DB["users"][uid]
                 usr["spotify"] = {"id": prof.get("id"), "access": j["access_token"], "refresh": j["refresh_token"], "exp": time.time() + j["expires_in"]}
                 save()
-            return self.redirect("/", self.session_cookie(usr))
+            return self.redirect("/?welcome=1" if is_new else "/", self.session_cookie(usr))
         if path.startswith("/api/"):
             return self.api_get(path, qs, u)
         f = ROOT / "public" / ("index.html" if path == "/" else path.lstrip("/"))
