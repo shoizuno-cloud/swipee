@@ -49,3 +49,5 @@ SPOTIFY_REDIRECT_URI=https://xxxx.trycloudflare.com/auth/callback SPOTIFY_CLIENT
 5. Spotify Developer DashboardのRedirect URIも同じ値に更新(**この1回だけでよい。以後URLは変わらない**)
 
 **データ永続化について**: `DATABASE_URL`(Renderが自動接続する無料Postgres)があれば友達・いいね・プレイリストはそちらに保存され、サーバーがスリープしても消えない。ただしRenderの無料Postgresは**作成から30日で失効**するため、期限が来たら新しいデータベースを作り直してRenderの環境変数を張り替える必要がある(データは移行されない)。`DATABASE_URL`が無い場合は従来通り`data.json`に保存するが、Render無料プランはファイルシステムが揮発性なので、15分アクセスがないとスリープ時にデータが消える。
+
+<!-- auto-deploy test 2026-10-01T11:22:50Z -->
