@@ -6,7 +6,9 @@
 <link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0f0f14">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="icon" href="/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Swipee"><link rel="stylesheet" href="/style.css"></head>
+<meta name="apple-mobile-web-app-status-bar-style" content="black" id="statusBarMeta"><meta name="apple-mobile-web-app-title" content="Swipee"><link rel="stylesheet" href="/style.css">
+<script>try{var t=localStorage.getItem('theme')||'system';var dark=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.getElementById('statusBarMeta').content=dark?'black':'default'}catch(e){}</script>
+</head>
 <body>
 <select id="langSel" aria-label="Language"></select>
 <div id="login" class="screen hidden">
