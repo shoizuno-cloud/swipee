@@ -15,11 +15,11 @@ input,select{background:var(--card);border:1px solid var(--border);color:var(--f
 .btn.green{background:var(--green);color:#000;font-weight:700}.btn.pink{background:var(--pink)}.btn.sm{padding:6px 12px;font-size:.85rem}
 #demoForm{display:flex;gap:8px;justify-content:center}#demoForm input{flex:1;min-width:0}
 #app{height:100%;display:flex;flex-direction:column}
-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;flex-shrink:0;background:var(--bg);z-index:5}
-#who{color:var(--mut);font-size:.85rem}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 120px 14px 18px;flex-shrink:0;background:var(--bg);z-index:5}
+#who{color:var(--mut);font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40vw}
 main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;max-width:520px;margin:0 auto;width:100%;padding:0 16px 16px}
 nav{flex-shrink:0;display:flex;background:var(--surface2);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;background:none;border:0;color:var(--mut);padding:14px;font-size:1rem;cursor:pointer}nav .on{color:var(--fg);font-weight:700}
+nav button{flex:1;min-width:0;background:none;border:0;color:var(--mut);padding:14px 4px;font-size:1rem;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}nav .on{color:var(--fg);font-weight:700}
 .filters{display:flex;gap:8px;margin-bottom:14px}.filters input{flex:1;min-width:0;width:100%}
 .searchwrap{position:relative;flex:1;min-width:0}
 .suggest{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;z-index:6;box-shadow:0 10px 30px #0006;max-height:280px;overflow-y:auto}
@@ -69,6 +69,7 @@ a{color:var(--green)}
 html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}body{padding-top:env(safe-area-inset-top);user-select:none;-webkit-user-select:none}input{user-select:text;-webkit-user-select:text;font-size:16px}
 header{padding-top:max(14px,env(safe-area-inset-top))}nav{padding-bottom:max(0px,env(safe-area-inset-bottom))}
 @media(max-width:480px){#card{min-height:380px}}
+@media(max-width:360px){nav button{font-size:.82rem;padding:12px 2px}header{padding-right:110px}#who{max-width:22vw}}
 #langSel{position:fixed;top:max(10px,env(safe-area-inset-top));right:12px;z-index:20;padding:6px 8px;font-size:.8rem;border-radius:8px;opacity:.85}
 #login #langSel{position:absolute}
 .modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:40;padding:20px}
