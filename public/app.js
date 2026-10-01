@@ -4,16 +4,155 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 2600) };
 let me, queue = [], cur = null, reported = false, selected = new Set(), genresCfg = null;
 
+// ---- テーマ(ライト/ダーク/端末に合わせる) ----
+const getTheme = () => { try { return localStorage.getItem('theme') || 'system' } catch { return 'system' } };
+function setTheme(t) {
+  try { localStorage.setItem('theme', t) } catch {}
+  if (t === 'system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+}
+setTheme(getTheme());
+
 // ---- 多言語(i18n) ----
 const LANGS = {
-  ja: {langName:'日本語', tagline:'サビだけ聴いて、好きな曲に出会う。<br>友達が今聴いている曲も見れる。', spotifyStart:'Spotifyで始める', orTry:'または(Spotify連携なしで試す)', nickname:'ニックネーム', start:'はじめる', searchPh:'アーティスト・曲名で探す', discoverHint:'← スキップ / → いいね / スペース 再生・停止 / Z やり直し (30秒プレビュー=サビ付近)', navDiscover:'発見', navLibrary:'ライブラリ', navFriends:'友達', whoSpotify:' · Spotify連携中', noTracksFound:'曲が見つかりません', tapToPlay:'▶ タップでサビ再生', likedAdded:'♥ ライブラリに追加', likeBadge:'いいね', skipBadge:'スキップ', nothingToUndo:'戻せる操作がありません', undoToast:'↩ 元に戻しました', libCreateTitle:'プレイリストを作る', plNamePh:'プレイリスト名', plDefaultPrefix:'Swipee', plDesc:'Swipeeで作成', mixLabel:'似た曲も自動で追加して30曲にする', mkBtnSpotify:'Spotifyにプレイリスト作成', mkBtnLocal:'プレイリスト作成', selectAllBtn:'全選択', deleteSelectedBtn:'選択した曲を削除', confirmDeleteSelected:'{n}曲を削除しますか?', notLinkedHint:'※Spotify未連携のためアプリ内に保存されます。', spotifyLinkText:'Spotifyと連携', likedTitle:'いいねした曲 ({n})', likedEmpty:'発見タブで♥を付けるとここに溜まります', deleteBtn:'削除', playlistsTitle:'作成したプレイリスト', trackCount:'{n}曲', matchedSuffix:' · Spotifyに{n}曲一致', playlistsEmpty:'まだありません', openBtn:'開く', creating:'作成中…', createdSpotify:'Spotifyに作成しました', createdLocal:'作成しました', inviteCodeTitle:'あなたの招待コード', copyBtn:'コピー', friendCodePh:'友達のコードを入力', addBtn:'追加', shareLabel:'自分の再生中を友達に共有する', nowPlayingTitle:'友達が今聴いている曲', sourceSpotify:'Spotify', sourceApp:'アプリ内', playSabiBtn:'▶ サビ', notPlaying:'今は聴いていません', friendsEmpty:'コードを交換して友達を追加しましょう', copied:'コピーしました', friendAdded:'{name}さんを追加しました', nowPreviewToast:'♪ {title}', genre_all:'すべて', genre_jpop:'J-POP/アジア', genre_pop:'Pop', genre_rock:'Rock', genre_rap:'Rap/HipHop', genre_rnb:'R&B', genre_dance:'Dance', genre_electro:'Electro', genre_alternative:'Alternative', genre_jazz:'Jazz', genre_chill:'Chill(まったり)', err_name_required:'名前を入力してください', err_code_not_found:'コードが見つかりません', err_spotify_not_configured:'Spotify連携が設定されていません', err_spotify_not_linked:'Spotifyと連携してください', err_no_tracks_selected:'曲を選んでください', err_playlist_create_failed:'Spotifyプレイリストの作成に失敗しました', err_unauth:'ログインしてください', err_not_found:'見つかりません', err_generic:'エラーが発生しました', navSettings:'設定', pinBtn:'ピン留め', unpinBtn:'ピン留めを解除', pinnedToast:'📌 ピン留めしました', unpinnedToast:'ピン留めを解除しました', settingsTitle:'設定', languageLabel:'言語', nicknameLabel:'ニックネーム', saveBtn:'保存', savedToast:'保存しました', spotifyLabel:'Spotify連携', spotifyConnected:'連携済み', spotifyNotConnected:'未連携', unlinkBtn:'連携解除', logoutBtn:'ログアウト', dangerZoneTitle:'危険な操作', deleteAccountBtn:'アカウントを削除', confirmDeleteAccount:'アカウントを削除しますか? この操作は取り消せません。'},
-  en: {langName:'English', tagline:'Listen to the hook, discover songs you love.<br>See what your friends are playing right now.', spotifyStart:'Get started with Spotify', orTry:'or try it without Spotify', nickname:'Nickname', start:'Start', searchPh:'Search artist or song', discoverHint:'← Skip / → Like / Space Play-Pause / Z Undo (30s preview ≈ the hook)', navDiscover:'Discover', navLibrary:'Library', navFriends:'Friends', whoSpotify:' · Spotify connected', noTracksFound:'No tracks found', tapToPlay:'▶ Tap to play the hook', likedAdded:'♥ Added to library', likeBadge:'Like', skipBadge:'Skip', nothingToUndo:'Nothing to undo', undoToast:'↩ Undone', libCreateTitle:'Create a playlist', plNamePh:'Playlist name', plDefaultPrefix:'Swipee', plDesc:'Created with Swipee', mixLabel:'Auto-add similar tracks up to 30 songs', mkBtnSpotify:'Create on Spotify', mkBtnLocal:'Create playlist', selectAllBtn:'Select all', deleteSelectedBtn:'Delete selected', confirmDeleteSelected:'Delete {n} tracks?', notLinkedHint:'※ Not linked to Spotify — saved in the app only.', spotifyLinkText:'Link Spotify', likedTitle:'Liked songs ({n})', likedEmpty:'Tap ♥ on Discover to collect songs here', deleteBtn:'Remove', playlistsTitle:'Created playlists', trackCount:'{n} tracks', matchedSuffix:' · {n} matched on Spotify', playlistsEmpty:'None yet', openBtn:'Open', creating:'Creating…', createdSpotify:'Created on Spotify', createdLocal:'Created', inviteCodeTitle:'Your invite code', copyBtn:'Copy', friendCodePh:"Enter a friend's code", addBtn:'Add', shareLabel:"Share what I'm playing with friends", nowPlayingTitle:'What friends are playing', sourceSpotify:'Spotify', sourceApp:'In-app', playSabiBtn:'▶ Hook', notPlaying:'Not listening right now', friendsEmpty:'Exchange codes to add friends', copied:'Copied', friendAdded:'Added {name}', nowPreviewToast:'♪ {title}', genre_all:'All', genre_jpop:'J-Pop / Asia', genre_pop:'Pop', genre_rock:'Rock', genre_rap:'Rap/Hip-Hop', genre_rnb:'R&B', genre_dance:'Dance', genre_electro:'Electro', genre_alternative:'Alternative', genre_jazz:'Jazz', genre_chill:'Chill', err_name_required:'Please enter a name', err_code_not_found:'Code not found', err_spotify_not_configured:"Spotify isn't configured", err_spotify_not_linked:'Please link Spotify', err_no_tracks_selected:'Select some tracks first', err_playlist_create_failed:'Failed to create the Spotify playlist', err_unauth:'Please log in', err_not_found:'Not found', err_generic:'Something went wrong', navSettings:'Settings', pinBtn:'Pin', unpinBtn:'Unpin', pinnedToast:'📌 Pinned', unpinnedToast:'Unpinned', settingsTitle:'Settings', languageLabel:'Language', nicknameLabel:'Nickname', saveBtn:'Save', savedToast:'Saved', spotifyLabel:'Spotify connection', spotifyConnected:'Connected', spotifyNotConnected:'Not connected', unlinkBtn:'Unlink', logoutBtn:'Log out', dangerZoneTitle:'Danger zone', deleteAccountBtn:'Delete account', confirmDeleteAccount:'Delete your account? This cannot be undone.'},
-  ko: {langName:'한국어', tagline:'후렴만 듣고 좋아하는 곡을 발견하세요.<br>친구가 지금 듣고 있는 곡도 볼 수 있어요.', spotifyStart:'Spotify로 시작하기', orTry:'또는 (Spotify 연동 없이 체험하기)', nickname:'닉네임', start:'시작하기', searchPh:'아티스트·곡명 검색', discoverHint:'← 스킵 / → 좋아요 / 스페이스 재생·정지 / Z 되돌리기 (30초 미리듣기=후렴 부근)', navDiscover:'발견', navLibrary:'보관함', navFriends:'친구', whoSpotify:' · Spotify 연동됨', noTracksFound:'곡을 찾을 수 없어요', tapToPlay:'▶ 탭해서 후렴 재생', likedAdded:'♥ 보관함에 추가됨', likeBadge:'좋아요', skipBadge:'스킵', nothingToUndo:'되돌릴 스와이프가 없어요', undoToast:'↩ 되돌렸어요', libCreateTitle:'플레이리스트 만들기', plNamePh:'플레이리스트 이름', plDefaultPrefix:'Swipee', plDesc:'Swipee로 생성', mixLabel:'비슷한 곡을 자동으로 추가해 30곡으로 채우기', mkBtnSpotify:'Spotify에 플레이리스트 만들기', mkBtnLocal:'플레이리스트 만들기', selectAllBtn:'전체 선택', deleteSelectedBtn:'선택한 곡 삭제', confirmDeleteSelected:'{n}곡을 삭제할까요?', notLinkedHint:'※ Spotify 미연동 상태라 앱 안에만 저장돼요.', spotifyLinkText:'Spotify 연동하기', likedTitle:'좋아요한 곡 ({n})', likedEmpty:'발견 탭에서 ♥를 누르면 여기에 모여요', deleteBtn:'삭제', playlistsTitle:'만든 플레이리스트', trackCount:'{n}곡', matchedSuffix:' · Spotify에서 {n}곡 일치', playlistsEmpty:'아직 없어요', openBtn:'열기', creating:'만드는 중…', createdSpotify:'Spotify에 만들었어요', createdLocal:'만들었어요', inviteCodeTitle:'내 초대 코드', copyBtn:'복사', friendCodePh:'친구 코드 입력', addBtn:'추가', shareLabel:'내가 듣는 곡을 친구에게 공유', nowPlayingTitle:'친구가 지금 듣는 곡', sourceSpotify:'Spotify', sourceApp:'앱 내', playSabiBtn:'▶ 후렴', notPlaying:'지금은 듣고 있지 않아요', friendsEmpty:'코드를 교환해서 친구를 추가해보세요', copied:'복사했어요', friendAdded:'{name}님을 추가했어요', nowPreviewToast:'♪ {title}', genre_all:'전체', genre_jpop:'J-POP/아시아', genre_pop:'Pop', genre_rock:'Rock', genre_rap:'랩/힙합', genre_rnb:'R&B', genre_dance:'댄스', genre_electro:'일렉트로', genre_alternative:'얼터너티브', genre_jazz:'재즈', genre_chill:'칠(잔잔한)', err_name_required:'이름을 입력해주세요', err_code_not_found:'코드를 찾을 수 없어요', err_spotify_not_configured:'Spotify 연동이 설정되지 않았어요', err_spotify_not_linked:'Spotify를 연동해주세요', err_no_tracks_selected:'곡을 선택해주세요', err_playlist_create_failed:'Spotify 플레이리스트 생성에 실패했어요', err_unauth:'로그인해주세요', err_not_found:'찾을 수 없어요', err_generic:'오류가 발생했어요', navSettings:'설정', pinBtn:'고정', unpinBtn:'고정 해제', pinnedToast:'📌 고정했어요', unpinnedToast:'고정을 해제했어요', settingsTitle:'설정', languageLabel:'언어', nicknameLabel:'닉네임', saveBtn:'저장', savedToast:'저장했어요', spotifyLabel:'Spotify 연동', spotifyConnected:'연동됨', spotifyNotConnected:'미연동', unlinkBtn:'연동 해제', logoutBtn:'로그아웃', dangerZoneTitle:'위험 구역', deleteAccountBtn:'계정 삭제', confirmDeleteAccount:'계정을 삭제할까요? 이 작업은 되돌릴 수 없어요.'},
-  zh: {langName:'中文', tagline:'只听副歌,发现你喜欢的歌。<br>还能看到朋友现在在听什么。', spotifyStart:'使用 Spotify 开始', orTry:'或(不连接 Spotify 体验)', nickname:'昵称', start:'开始', searchPh:'搜索歌手或歌曲', discoverHint:'← 跳过 / → 喜欢 / 空格 播放·暂停 / Z 撤销(30秒预览≈副歌部分)', navDiscover:'发现', navLibrary:'音乐库', navFriends:'朋友', whoSpotify:' · 已连接 Spotify', noTracksFound:'没有找到歌曲', tapToPlay:'▶ 点击播放副歌', likedAdded:'♥ 已加入音乐库', likeBadge:'喜欢', skipBadge:'跳过', nothingToUndo:'没有可撤销的操作', undoToast:'↩ 已撤销', libCreateTitle:'创建歌单', plNamePh:'歌单名称', plDefaultPrefix:'Swipee', plDesc:'由 Swipee 创建', mixLabel:'自动加入相似歌曲,凑满30首', mkBtnSpotify:'在 Spotify 创建歌单', mkBtnLocal:'创建歌单', selectAllBtn:'全选', deleteSelectedBtn:'删除所选', confirmDeleteSelected:'删除{n}首歌曲?', notLinkedHint:'※ 未连接 Spotify,将仅保存在应用内。', spotifyLinkText:'连接 Spotify', likedTitle:'喜欢的歌曲 ({n})', likedEmpty:'在发现页点♥收藏歌曲吧', deleteBtn:'删除', playlistsTitle:'已创建的歌单', trackCount:'{n}首', matchedSuffix:' · 在 Spotify 匹配到{n}首', playlistsEmpty:'暂无', openBtn:'打开', creating:'创建中…', createdSpotify:'已在 Spotify 创建', createdLocal:'已创建', inviteCodeTitle:'你的邀请码', copyBtn:'复制', friendCodePh:'输入朋友的邀请码', addBtn:'添加', shareLabel:'把我正在听的歌分享给朋友', nowPlayingTitle:'朋友正在听的歌', sourceSpotify:'Spotify', sourceApp:'应用内', playSabiBtn:'▶ 副歌', notPlaying:'现在没有在听', friendsEmpty:'交换邀请码来添加朋友吧', copied:'已复制', friendAdded:'已添加 {name}', nowPreviewToast:'♪ {title}', genre_all:'全部', genre_jpop:'J-POP/亚洲', genre_pop:'流行', genre_rock:'摇滚', genre_rap:'说唱/嘻哈', genre_rnb:'R&B', genre_dance:'舞曲', genre_electro:'电子', genre_alternative:'另类', genre_jazz:'爵士', genre_chill:'Chill(放松)', err_name_required:'请输入名字', err_code_not_found:'未找到该邀请码', err_spotify_not_configured:'尚未配置 Spotify 连接', err_spotify_not_linked:'请先连接 Spotify', err_no_tracks_selected:'请先选择歌曲', err_playlist_create_failed:'创建 Spotify 歌单失败', err_unauth:'请先登录', err_not_found:'未找到', err_generic:'出错了', navSettings:'设置', pinBtn:'置顶', unpinBtn:'取消置顶', pinnedToast:'📌 已置顶', unpinnedToast:'已取消置顶', settingsTitle:'设置', languageLabel:'语言', nicknameLabel:'昵称', saveBtn:'保存', savedToast:'已保存', spotifyLabel:'Spotify 连接', spotifyConnected:'已连接', spotifyNotConnected:'未连接', unlinkBtn:'取消连接', logoutBtn:'退出登录', dangerZoneTitle:'危险操作', deleteAccountBtn:'删除账户', confirmDeleteAccount:'删除账户?此操作无法撤销。'},
-  es: {langName:'Español', tagline:'Escucha el estribillo y descubre canciones que te encantarán.<br>Mira qué está escuchando tu amigos ahora mismo.', spotifyStart:'Empezar con Spotify', orTry:'o pruébalo sin conectar Spotify', nickname:'Apodo', start:'Empezar', searchPh:'Buscar artista o canción', discoverHint:'← Saltar / → Me gusta / Espacio Reproducir-Pausar / Z Deshacer (avance de 30s ≈ el estribillo)', navDiscover:'Descubrir', navLibrary:'Biblioteca', navFriends:'Amigos', whoSpotify:' · Spotify conectado', noTracksFound:'No se encontraron canciones', tapToPlay:'▶ Toca para escuchar el estribillo', likedAdded:'♥ Añadido a la biblioteca', likeBadge:'Me gusta', skipBadge:'Saltar', nothingToUndo:'No hay nada que deshacer', undoToast:'↩ Deshecho', libCreateTitle:'Crear una playlist', plNamePh:'Nombre de la playlist', plDefaultPrefix:'Swipee', plDesc:'Creado con Swipee', mixLabel:'Añadir canciones similares automáticamente hasta 30', mkBtnSpotify:'Crear en Spotify', mkBtnLocal:'Crear playlist', selectAllBtn:'Seleccionar todo', deleteSelectedBtn:'Eliminar seleccionadas', confirmDeleteSelected:'¿Eliminar {n} canciones?', notLinkedHint:'※ Como no está conectado Spotify, se guarda solo en la app.', spotifyLinkText:'Conectar Spotify', likedTitle:'Canciones con me gusta ({n})', likedEmpty:'Toca ♥ en Descubrir para guardar canciones aquí', deleteBtn:'Quitar', playlistsTitle:'Playlists creadas', trackCount:'{n} canciones', matchedSuffix:' · {n} encontradas en Spotify', playlistsEmpty:'Todavía no hay ninguna', openBtn:'Abrir', creating:'Creando…', createdSpotify:'Creada en Spotify', createdLocal:'Creada', inviteCodeTitle:'Tu código de invitación', copyBtn:'Copiar', friendCodePh:'Escribe el código de un amigo', addBtn:'Añadir', shareLabel:'Compartir lo que escucho con mis amigos', nowPlayingTitle:'Lo que están escuchando tus amigos', sourceSpotify:'Spotify', sourceApp:'En la app', playSabiBtn:'▶ Estribillo', notPlaying:'Ahora mismo no está escuchando nada', friendsEmpty:'Intercambia códigos para añadir amigos', copied:'Copiado', friendAdded:'Se añadió a {name}', nowPreviewToast:'♪ {title}', genre_all:'Todo', genre_jpop:'J-Pop / Asia', genre_pop:'Pop', genre_rock:'Rock', genre_rap:'Rap/Hip-Hop', genre_rnb:'R&B', genre_dance:'Dance', genre_electro:'Electro', genre_alternative:'Alternativa', genre_jazz:'Jazz', genre_chill:'Chill', err_name_required:'Por favor, introduce un nombre', err_code_not_found:'Código no encontrado', err_spotify_not_configured:'Spotify no está configurado', err_spotify_not_linked:'Conecta Spotify, por favor', err_no_tracks_selected:'Selecciona alguna canción primero', err_playlist_create_failed:'No se pudo crear la playlist en Spotify', err_unauth:'Inicia sesión, por favor', err_not_found:'No encontrado', err_generic:'Ocurrió un error', navSettings:'Ajustes', pinBtn:'Fijar', unpinBtn:'Dejar de fijar', pinnedToast:'📌 Fijado', unpinnedToast:'Ya no está fijado', settingsTitle:'Ajustes', languageLabel:'Idioma', nicknameLabel:'Apodo', saveBtn:'Guardar', savedToast:'Guardado', spotifyLabel:'Conexión con Spotify', spotifyConnected:'Conectado', spotifyNotConnected:'No conectado', unlinkBtn:'Desconectar', logoutBtn:'Cerrar sesión', dangerZoneTitle:'Zona de riesgo', deleteAccountBtn:'Eliminar cuenta', confirmDeleteAccount:'¿Eliminar tu cuenta? Esta acción no se puede deshacer.'},
+  ja: {langName:'日本語', tagline:'サビだけ聴いて、好きな曲に出会う。<br>友達が今聴いている曲も見れる。', spotifyStart:'Spotifyで始める', orTry:'または(Spotify連携なしで試す)', nickname:'ニックネーム', start:'はじめる', searchPh:'アーティスト・曲名で探す', discoverHint:'← スキップ / → いいね / スペース 再生・停止 / Z やり直し (30秒プレビュー=サビ付近)', navDiscover:'発見', navLibrary:'ライブラリ', navFriends:'友達', whoSpotify:' · Spotify連携中', noTracksFound:'曲が見つかりません', tapToPlay:'▶ タップでサビ再生', likedAdded:'♥ ライブラリに追加', likeBadge:'いいね', skipBadge:'スキップ', nothingToUndo:'戻せる操作がありません', undoToast:'↩ 元に戻しました', libCreateTitle:'プレイリストを作る', plNamePh:'プレイリスト名', plDefaultPrefix:'Swipee', plDesc:'Swipeeで作成', mixLabel:'似た曲も自動で追加して30曲にする', mkBtnSpotify:'Spotifyにプレイリスト作成', mkBtnLocal:'プレイリスト作成', selectAllBtn:'全選択', deleteSelectedBtn:'選択した曲を削除', confirmDeleteSelected:'{n}曲を削除しますか?', notLinkedHint:'※Spotify未連携のためアプリ内に保存されます。', spotifyLinkText:'Spotifyと連携', likedTitle:'いいねした曲 ({n})', likedEmpty:'発見タブで♥を付けるとここに溜まります', deleteBtn:'削除', playlistsTitle:'作成したプレイリスト', trackCount:'{n}曲', matchedSuffix:' · Spotifyに{n}曲一致', playlistsEmpty:'まだありません', openBtn:'開く', creating:'作成中…', createdSpotify:'Spotifyに作成しました', createdLocal:'作成しました', inviteCodeTitle:'あなたの招待コード', copyBtn:'コピー', friendCodePh:'友達のコードを入力', addBtn:'追加', shareLabel:'自分の再生中を友達に共有する', nowPlayingTitle:'友達が今聴いている曲', sourceSpotify:'Spotify', sourceApp:'アプリ内', playSabiBtn:'▶ サビ', notPlaying:'今は聴いていません', friendsEmpty:'コードを交換して友達を追加しましょう', copied:'コピーしました', friendAdded:'{name}さんを追加しました', nowPreviewToast:'♪ {title}', genre_all:'すべて', genre_jpop:'J-POP/アジア', genre_pop:'Pop', genre_rock:'Rock', genre_rap:'Rap/HipHop', genre_rnb:'R&B', genre_dance:'Dance', genre_electro:'Electro', genre_alternative:'Alternative', genre_jazz:'Jazz', genre_chill:'Chill(まったり)', err_name_required:'名前を入力してください', err_code_not_found:'コードが見つかりません', err_spotify_not_configured:'Spotify連携が設定されていません', err_spotify_not_linked:'Spotifyと連携してください', err_no_tracks_selected:'曲を選んでください', err_playlist_create_failed:'Spotifyプレイリストの作成に失敗しました', err_unauth:'ログインしてください', err_not_found:'見つかりません', err_generic:'エラーが発生しました', navSettings:'設定', pinBtn:'ピン留め', unpinBtn:'ピン留めを解除', pinnedToast:'📌 ピン留めしました', unpinnedToast:'ピン留めを解除しました', settingsTitle:'設定', languageLabel:'言語', nicknameLabel:'ニックネーム', saveBtn:'保存', savedToast:'保存しました', spotifyLabel:'Spotify連携', spotifyConnected:'連携済み', spotifyNotConnected:'未連携', unlinkBtn:'連携解除', logoutBtn:'ログアウト', dangerZoneTitle:'危険な操作', deleteAccountBtn:'アカウントを削除', confirmDeleteAccount:'アカウントを削除しますか? この操作は取り消せません。', themeLabel:'テーマ', themeSystem:'端末に合わせる', themeLight:'ライト', themeDark:'ダーク', supportTitle:'サポート', privacyTitle:'プライバシーポリシー', termsTitle:'利用規約', faqTitle:'よくある質問', contactTitle:'お問い合わせ', contactBody:'不具合の報告やご要望は、お気軽にこちらまでご連絡ください。', backBtn:'← 戻る'},
+  en: {langName:'English', tagline:'Listen to the hook, discover songs you love.<br>See what your friends are playing right now.', spotifyStart:'Get started with Spotify', orTry:'or try it without Spotify', nickname:'Nickname', start:'Start', searchPh:'Search artist or song', discoverHint:'← Skip / → Like / Space Play-Pause / Z Undo (30s preview ≈ the hook)', navDiscover:'Discover', navLibrary:'Library', navFriends:'Friends', whoSpotify:' · Spotify connected', noTracksFound:'No tracks found', tapToPlay:'▶ Tap to play the hook', likedAdded:'♥ Added to library', likeBadge:'Like', skipBadge:'Skip', nothingToUndo:'Nothing to undo', undoToast:'↩ Undone', libCreateTitle:'Create a playlist', plNamePh:'Playlist name', plDefaultPrefix:'Swipee', plDesc:'Created with Swipee', mixLabel:'Auto-add similar tracks up to 30 songs', mkBtnSpotify:'Create on Spotify', mkBtnLocal:'Create playlist', selectAllBtn:'Select all', deleteSelectedBtn:'Delete selected', confirmDeleteSelected:'Delete {n} tracks?', notLinkedHint:'※ Not linked to Spotify — saved in the app only.', spotifyLinkText:'Link Spotify', likedTitle:'Liked songs ({n})', likedEmpty:'Tap ♥ on Discover to collect songs here', deleteBtn:'Remove', playlistsTitle:'Created playlists', trackCount:'{n} tracks', matchedSuffix:' · {n} matched on Spotify', playlistsEmpty:'None yet', openBtn:'Open', creating:'Creating…', createdSpotify:'Created on Spotify', createdLocal:'Created', inviteCodeTitle:'Your invite code', copyBtn:'Copy', friendCodePh:"Enter a friend's code", addBtn:'Add', shareLabel:"Share what I'm playing with friends", nowPlayingTitle:'What friends are playing', sourceSpotify:'Spotify', sourceApp:'In-app', playSabiBtn:'▶ Hook', notPlaying:'Not listening right now', friendsEmpty:'Exchange codes to add friends', copied:'Copied', friendAdded:'Added {name}', nowPreviewToast:'♪ {title}', genre_all:'All', genre_jpop:'J-Pop / Asia', genre_pop:'Pop', genre_rock:'Rock', genre_rap:'Rap/Hip-Hop', genre_rnb:'R&B', genre_dance:'Dance', genre_electro:'Electro', genre_alternative:'Alternative', genre_jazz:'Jazz', genre_chill:'Chill', err_name_required:'Please enter a name', err_code_not_found:'Code not found', err_spotify_not_configured:"Spotify isn't configured", err_spotify_not_linked:'Please link Spotify', err_no_tracks_selected:'Select some tracks first', err_playlist_create_failed:'Failed to create the Spotify playlist', err_unauth:'Please log in', err_not_found:'Not found', err_generic:'Something went wrong', navSettings:'Settings', pinBtn:'Pin', unpinBtn:'Unpin', pinnedToast:'📌 Pinned', unpinnedToast:'Unpinned', settingsTitle:'Settings', languageLabel:'Language', nicknameLabel:'Nickname', saveBtn:'Save', savedToast:'Saved', spotifyLabel:'Spotify connection', spotifyConnected:'Connected', spotifyNotConnected:'Not connected', unlinkBtn:'Unlink', logoutBtn:'Log out', dangerZoneTitle:'Danger zone', deleteAccountBtn:'Delete account', confirmDeleteAccount:'Delete your account? This cannot be undone.', themeLabel:'Theme', themeSystem:'Match device', themeLight:'Light', themeDark:'Dark', supportTitle:'Support', privacyTitle:'Privacy Policy', termsTitle:'Terms of Service', faqTitle:'FAQ', contactTitle:'Contact', contactBody:'Found a bug or have a suggestion? Reach out anytime.', backBtn:'← Back'},
+  ko: {langName:'한국어', tagline:'후렴만 듣고 좋아하는 곡을 발견하세요.<br>친구가 지금 듣고 있는 곡도 볼 수 있어요.', spotifyStart:'Spotify로 시작하기', orTry:'또는 (Spotify 연동 없이 체험하기)', nickname:'닉네임', start:'시작하기', searchPh:'아티스트·곡명 검색', discoverHint:'← 스킵 / → 좋아요 / 스페이스 재생·정지 / Z 되돌리기 (30초 미리듣기=후렴 부근)', navDiscover:'발견', navLibrary:'보관함', navFriends:'친구', whoSpotify:' · Spotify 연동됨', noTracksFound:'곡을 찾을 수 없어요', tapToPlay:'▶ 탭해서 후렴 재생', likedAdded:'♥ 보관함에 추가됨', likeBadge:'좋아요', skipBadge:'스킵', nothingToUndo:'되돌릴 스와이프가 없어요', undoToast:'↩ 되돌렸어요', libCreateTitle:'플레이리스트 만들기', plNamePh:'플레이리스트 이름', plDefaultPrefix:'Swipee', plDesc:'Swipee로 생성', mixLabel:'비슷한 곡을 자동으로 추가해 30곡으로 채우기', mkBtnSpotify:'Spotify에 플레이리스트 만들기', mkBtnLocal:'플레이리스트 만들기', selectAllBtn:'전체 선택', deleteSelectedBtn:'선택한 곡 삭제', confirmDeleteSelected:'{n}곡을 삭제할까요?', notLinkedHint:'※ Spotify 미연동 상태라 앱 안에만 저장돼요.', spotifyLinkText:'Spotify 연동하기', likedTitle:'좋아요한 곡 ({n})', likedEmpty:'발견 탭에서 ♥를 누르면 여기에 모여요', deleteBtn:'삭제', playlistsTitle:'만든 플레이리스트', trackCount:'{n}곡', matchedSuffix:' · Spotify에서 {n}곡 일치', playlistsEmpty:'아직 없어요', openBtn:'열기', creating:'만드는 중…', createdSpotify:'Spotify에 만들었어요', createdLocal:'만들었어요', inviteCodeTitle:'내 초대 코드', copyBtn:'복사', friendCodePh:'친구 코드 입력', addBtn:'추가', shareLabel:'내가 듣는 곡을 친구에게 공유', nowPlayingTitle:'친구가 지금 듣는 곡', sourceSpotify:'Spotify', sourceApp:'앱 내', playSabiBtn:'▶ 후렴', notPlaying:'지금은 듣고 있지 않아요', friendsEmpty:'코드를 교환해서 친구를 추가해보세요', copied:'복사했어요', friendAdded:'{name}님을 추가했어요', nowPreviewToast:'♪ {title}', genre_all:'전체', genre_jpop:'J-POP/아시아', genre_pop:'Pop', genre_rock:'Rock', genre_rap:'랩/힙합', genre_rnb:'R&B', genre_dance:'댄스', genre_electro:'일렉트로', genre_alternative:'얼터너티브', genre_jazz:'재즈', genre_chill:'칠(잔잔한)', err_name_required:'이름을 입력해주세요', err_code_not_found:'코드를 찾을 수 없어요', err_spotify_not_configured:'Spotify 연동이 설정되지 않았어요', err_spotify_not_linked:'Spotify를 연동해주세요', err_no_tracks_selected:'곡을 선택해주세요', err_playlist_create_failed:'Spotify 플레이리스트 생성에 실패했어요', err_unauth:'로그인해주세요', err_not_found:'찾을 수 없어요', err_generic:'오류가 발생했어요', navSettings:'설정', pinBtn:'고정', unpinBtn:'고정 해제', pinnedToast:'📌 고정했어요', unpinnedToast:'고정을 해제했어요', settingsTitle:'설정', languageLabel:'언어', nicknameLabel:'닉네임', saveBtn:'저장', savedToast:'저장했어요', spotifyLabel:'Spotify 연동', spotifyConnected:'연동됨', spotifyNotConnected:'미연동', unlinkBtn:'연동 해제', logoutBtn:'로그아웃', dangerZoneTitle:'위험 구역', deleteAccountBtn:'계정 삭제', confirmDeleteAccount:'계정을 삭제할까요? 이 작업은 되돌릴 수 없어요.', themeLabel:'테마', themeSystem:'기기 설정에 맞춤', themeLight:'라이트', themeDark:'다크', supportTitle:'지원', privacyTitle:'개인정보 처리방침', termsTitle:'이용약관', faqTitle:'자주 묻는 질문', contactTitle:'문의하기', contactBody:'버그 제보나 제안이 있으시면 언제든 연락해주세요.', backBtn:'← 뒤로'},
+  zh: {langName:'中文', tagline:'只听副歌,发现你喜欢的歌。<br>还能看到朋友现在在听什么。', spotifyStart:'使用 Spotify 开始', orTry:'或(不连接 Spotify 体验)', nickname:'昵称', start:'开始', searchPh:'搜索歌手或歌曲', discoverHint:'← 跳过 / → 喜欢 / 空格 播放·暂停 / Z 撤销(30秒预览≈副歌部分)', navDiscover:'发现', navLibrary:'音乐库', navFriends:'朋友', whoSpotify:' · 已连接 Spotify', noTracksFound:'没有找到歌曲', tapToPlay:'▶ 点击播放副歌', likedAdded:'♥ 已加入音乐库', likeBadge:'喜欢', skipBadge:'跳过', nothingToUndo:'没有可撤销的操作', undoToast:'↩ 已撤销', libCreateTitle:'创建歌单', plNamePh:'歌单名称', plDefaultPrefix:'Swipee', plDesc:'由 Swipee 创建', mixLabel:'自动加入相似歌曲,凑满30首', mkBtnSpotify:'在 Spotify 创建歌单', mkBtnLocal:'创建歌单', selectAllBtn:'全选', deleteSelectedBtn:'删除所选', confirmDeleteSelected:'删除{n}首歌曲?', notLinkedHint:'※ 未连接 Spotify,将仅保存在应用内。', spotifyLinkText:'连接 Spotify', likedTitle:'喜欢的歌曲 ({n})', likedEmpty:'在发现页点♥收藏歌曲吧', deleteBtn:'删除', playlistsTitle:'已创建的歌单', trackCount:'{n}首', matchedSuffix:' · 在 Spotify 匹配到{n}首', playlistsEmpty:'暂无', openBtn:'打开', creating:'创建中…', createdSpotify:'已在 Spotify 创建', createdLocal:'已创建', inviteCodeTitle:'你的邀请码', copyBtn:'复制', friendCodePh:'输入朋友的邀请码', addBtn:'添加', shareLabel:'把我正在听的歌分享给朋友', nowPlayingTitle:'朋友正在听的歌', sourceSpotify:'Spotify', sourceApp:'应用内', playSabiBtn:'▶ 副歌', notPlaying:'现在没有在听', friendsEmpty:'交换邀请码来添加朋友吧', copied:'已复制', friendAdded:'已添加 {name}', nowPreviewToast:'♪ {title}', genre_all:'全部', genre_jpop:'J-POP/亚洲', genre_pop:'流行', genre_rock:'摇滚', genre_rap:'说唱/嘻哈', genre_rnb:'R&B', genre_dance:'舞曲', genre_electro:'电子', genre_alternative:'另类', genre_jazz:'爵士', genre_chill:'Chill(放松)', err_name_required:'请输入名字', err_code_not_found:'未找到该邀请码', err_spotify_not_configured:'尚未配置 Spotify 连接', err_spotify_not_linked:'请先连接 Spotify', err_no_tracks_selected:'请先选择歌曲', err_playlist_create_failed:'创建 Spotify 歌单失败', err_unauth:'请先登录', err_not_found:'未找到', err_generic:'出错了', navSettings:'设置', pinBtn:'置顶', unpinBtn:'取消置顶', pinnedToast:'📌 已置顶', unpinnedToast:'已取消置顶', settingsTitle:'设置', languageLabel:'语言', nicknameLabel:'昵称', saveBtn:'保存', savedToast:'已保存', spotifyLabel:'Spotify 连接', spotifyConnected:'已连接', spotifyNotConnected:'未连接', unlinkBtn:'取消连接', logoutBtn:'退出登录', dangerZoneTitle:'危险操作', deleteAccountBtn:'删除账户', confirmDeleteAccount:'删除账户?此操作无法撤销。', themeLabel:'主题', themeSystem:'跟随设备', themeLight:'浅色', themeDark:'深色', supportTitle:'支持', privacyTitle:'隐私政策', termsTitle:'服务条款', faqTitle:'常见问题', contactTitle:'联系我们', contactBody:'发现问题或有建议?欢迎随时联系。', backBtn:'← 返回'},
+  es: {langName:'Español', tagline:'Escucha el estribillo y descubre canciones que te encantarán.<br>Mira qué está escuchando tu amigos ahora mismo.', spotifyStart:'Empezar con Spotify', orTry:'o pruébalo sin conectar Spotify', nickname:'Apodo', start:'Empezar', searchPh:'Buscar artista o canción', discoverHint:'← Saltar / → Me gusta / Espacio Reproducir-Pausar / Z Deshacer (avance de 30s ≈ el estribillo)', navDiscover:'Descubrir', navLibrary:'Biblioteca', navFriends:'Amigos', whoSpotify:' · Spotify conectado', noTracksFound:'No se encontraron canciones', tapToPlay:'▶ Toca para escuchar el estribillo', likedAdded:'♥ Añadido a la biblioteca', likeBadge:'Me gusta', skipBadge:'Saltar', nothingToUndo:'No hay nada que deshacer', undoToast:'↩ Deshecho', libCreateTitle:'Crear una playlist', plNamePh:'Nombre de la playlist', plDefaultPrefix:'Swipee', plDesc:'Creado con Swipee', mixLabel:'Añadir canciones similares automáticamente hasta 30', mkBtnSpotify:'Crear en Spotify', mkBtnLocal:'Crear playlist', selectAllBtn:'Seleccionar todo', deleteSelectedBtn:'Eliminar seleccionadas', confirmDeleteSelected:'¿Eliminar {n} canciones?', notLinkedHint:'※ Como no está conectado Spotify, se guarda solo en la app.', spotifyLinkText:'Conectar Spotify', likedTitle:'Canciones con me gusta ({n})', likedEmpty:'Toca ♥ en Descubrir para guardar canciones aquí', deleteBtn:'Quitar', playlistsTitle:'Playlists creadas', trackCount:'{n} canciones', matchedSuffix:' · {n} encontradas en Spotify', playlistsEmpty:'Todavía no hay ninguna', openBtn:'Abrir', creating:'Creando…', createdSpotify:'Creada en Spotify', createdLocal:'Creada', inviteCodeTitle:'Tu código de invitación', copyBtn:'Copiar', friendCodePh:'Escribe el código de un amigo', addBtn:'Añadir', shareLabel:'Compartir lo que escucho con mis amigos', nowPlayingTitle:'Lo que están escuchando tus amigos', sourceSpotify:'Spotify', sourceApp:'En la app', playSabiBtn:'▶ Estribillo', notPlaying:'Ahora mismo no está escuchando nada', friendsEmpty:'Intercambia códigos para añadir amigos', copied:'Copiado', friendAdded:'Se añadió a {name}', nowPreviewToast:'♪ {title}', genre_all:'Todo', genre_jpop:'J-Pop / Asia', genre_pop:'Pop', genre_rock:'Rock', genre_rap:'Rap/Hip-Hop', genre_rnb:'R&B', genre_dance:'Dance', genre_electro:'Electro', genre_alternative:'Alternativa', genre_jazz:'Jazz', genre_chill:'Chill', err_name_required:'Por favor, introduce un nombre', err_code_not_found:'Código no encontrado', err_spotify_not_configured:'Spotify no está configurado', err_spotify_not_linked:'Conecta Spotify, por favor', err_no_tracks_selected:'Selecciona alguna canción primero', err_playlist_create_failed:'No se pudo crear la playlist en Spotify', err_unauth:'Inicia sesión, por favor', err_not_found:'No encontrado', err_generic:'Ocurrió un error', navSettings:'Ajustes', pinBtn:'Fijar', unpinBtn:'Dejar de fijar', pinnedToast:'📌 Fijado', unpinnedToast:'Ya no está fijado', settingsTitle:'Ajustes', languageLabel:'Idioma', nicknameLabel:'Apodo', saveBtn:'Guardar', savedToast:'Guardado', spotifyLabel:'Conexión con Spotify', spotifyConnected:'Conectado', spotifyNotConnected:'No conectado', unlinkBtn:'Desconectar', logoutBtn:'Cerrar sesión', dangerZoneTitle:'Zona de riesgo', deleteAccountBtn:'Eliminar cuenta', confirmDeleteAccount:'¿Eliminar tu cuenta? Esta acción no se puede deshacer.', themeLabel:'Tema', themeSystem:'Igual que el dispositivo', themeLight:'Claro', themeDark:'Oscuro', supportTitle:'Ayuda', privacyTitle:'Política de privacidad', termsTitle:'Términos del servicio', faqTitle:'Preguntas frecuentes', contactTitle:'Contacto', contactBody:'¿Encontraste un error o tienes una sugerencia? Escríbenos cuando quieras.', backBtn:'← Atrás'},
 };
 const SUPPORTED = Object.keys(LANGS);
 const LOCALE_TAG = {ja:'ja-JP', en:'en-US', ko:'ko-KR', zh:'zh-CN', es:'es-ES'};
+const CONTACT_EMAIL = 'swipee@outlook.jp';
+
+// ---- プライバシーポリシー・利用規約・FAQ ----
+const LEGAL = {
+  ja: {
+    privacy: [
+      '<p>Swipeeが扱う情報は次の通りです: ニックネーム、Spotifyと連携した場合のアカウント情報(トークンを含む)、♥した曲、作成したプレイリスト、友達リスト、そして今聴いている曲の情報です。これらはアプリの機能(発見・ライブラリ・友達との共有)を提供するためだけに使います。</p>',
+      '<p>曲の検索やプレビュー再生にはDeezerの公開APIを、Spotify連携時のプレイリスト作成・再生中の取得にはSpotify Web APIを利用します。それぞれのサービスの利用規約・プライバシーポリシーも適用されます。</p>',
+      '<p>保存先はPostgresデータベース(または連携していない場合はサーバー上のファイル)です。ログイン状態を保つためのセッションCookieのみを使用し、広告目的のトラッキングや第三者への情報提供は行いません。</p>',
+      '<p>「今聴いている曲」は、共有をONにしている友達にのみ表示されます。設定からいつでもOFFにできます。</p>',
+      '<p>設定の「アカウントを削除」から、いいね・プレイリスト・友達関係を含むすべてのデータを削除できます。</p>',
+      `<p>ご質問は <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> までご連絡ください。</p>`,
+    ].join(''),
+    terms: [
+      '<p>Swipeeは個人が開発・運営する無料のサービスです。動作の継続性や完全性を保証するものではなく、予告なく内容が変更・停止される場合があります。</p>',
+      '<p>不正アクセス、サービスの妨害、著作権で保護された音源データの不正な複製・再配布など、法令や各種サービスの利用規約に反する行為は禁止します。</p>',
+      '<p>Spotifyを連携して利用する場合は、Spotifyの利用規約にも従う必要があります。楽曲データの取得にはDeezerの公開APIを利用しています。</p>',
+      '<p>本サービスの利用により生じた損害について、運営者は一切の責任を負いません(現状有姿でのご提供となります)。</p>',
+      `<p>本規約に関するお問い合わせは <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> までお願いします。</p>`,
+    ].join(''),
+    faq: [
+      {q:'Spotifyアカウントがなくても使えますか?', a:'はい、ニックネームだけで始められます。ただしプレイリストの自動作成や、Spotifyで再生中の曲を友達と共有するにはSpotify連携が必要です。'},
+      {q:'「サビ」はどうやって検出していますか?', a:'曲の正確なサビ区間を解析しているわけではありません。Deezerが提供する30秒のプレビュー(曲の聴きどころ部分)を再生しています。'},
+      {q:'友達には何が見えますか?', a:'あなたが今聴いている曲のタイトルとアーティストだけです。いいねした曲の一覧や過去の履歴は見えません。設定からいつでも共有をOFFにできます。'},
+      {q:'データを全部消したい場合は?', a:'設定の「アカウントを削除」から、いいね・プレイリスト・友達関係を含めてすべて削除できます。この操作は取り消せません。'},
+      {q:'無料ですか?広告はありますか?', a:'無料で、広告もありません。'},
+      {q:'不具合や要望はどこに送ればいいですか?', a:`${CONTACT_EMAIL} までご連絡ください。`},
+    ],
+  },
+  en: {
+    privacy: [
+      '<p>Swipee handles the following information: your nickname, Spotify account details (including tokens) if you link it, songs you\'ve liked, playlists you create, your friends list, and what you\'re currently playing. This is used solely to provide the app\'s features (discovery, library, and sharing with friends).</p>',
+      "<p>Song search and previews use Deezer's public API; playlist creation and now-playing retrieval (when Spotify is linked) use the Spotify Web API. Each service's own terms and privacy policy also apply.</p>",
+      '<p>Data is stored in a Postgres database (or a file on the server if not linked). We only use a session cookie to keep you signed in — no advertising trackers, and we don\'t share your data with third parties.</p>',
+      '<p>"What you\'re playing" is only shown to friends who have sharing turned on for you to see. You can turn this off anytime in Settings.</p>',
+      '<p>You can delete all your data — likes, playlists, and friend connections — from "Delete account" in Settings.</p>',
+      `<p>Questions? Reach us at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>`,
+    ].join(''),
+    terms: [
+      '<p>Swipee is a free service built and operated by an individual developer. We don\'t guarantee uninterrupted or error-free operation, and features may change or be discontinued without notice.</p>',
+      "<p>You may not use the service to gain unauthorized access, disrupt it, or illegally copy or redistribute copyrighted audio data, or otherwise violate applicable law or any linked service's terms.</p>",
+      "<p>If you link Spotify, you must also comply with Spotify's own Terms of Service. Track data is retrieved via Deezer's public API.</p>",
+      '<p>The service is provided "as is," and the operator is not liable for any damages arising from its use.</p>',
+      `<p>For questions about these terms, contact <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>`,
+    ].join(''),
+    faq: [
+      {q:'Can I use it without a Spotify account?', a:"Yes — a nickname is all you need to start. Spotify linking is only required to auto-create playlists or to share what you're playing on Spotify with friends."},
+      {q:'How is the "hook" detected?', a:"We don't analyze the exact chorus. We play Deezer's 30-second preview, which is usually the catchiest part of the track."},
+      {q:'What can my friends see?', a:'Only the title and artist of what you\'re currently playing — not your full liked list or history. You can turn sharing off anytime in Settings.'},
+      {q:'How do I delete all my data?', a:'Use "Delete account" in Settings to remove everything — likes, playlists, and friend connections. This can\'t be undone.'},
+      {q:'Is it free? Are there ads?', a:'Yes, it\'s free, and there are no ads.'},
+      {q:'Where do I report a bug or send feedback?', a:`Email us at ${CONTACT_EMAIL}.`},
+    ],
+  },
+  ko: {
+    privacy: [
+      '<p>Swipee는 다음 정보를 다룹니다: 닉네임, Spotify 연동 시 계정 정보(토큰 포함), 좋아요한 곡, 만든 플레이리스트, 친구 목록, 현재 재생 중인 곡 정보입니다. 이는 오직 앱의 기능(발견·보관함·친구 공유)을 제공하기 위해서만 사용됩니다.</p>',
+      '<p>곡 검색과 미리듣기에는 Deezer 공개 API를, Spotify 연동 시 플레이리스트 생성과 재생 정보 가져오기에는 Spotify Web API를 사용합니다. 각 서비스의 약관과 개인정보처리방침도 함께 적용됩니다.</p>',
+      '<p>데이터는 Postgres 데이터베이스(미연동 시에는 서버의 파일)에 저장됩니다. 로그인 유지를 위한 세션 쿠키만 사용하며, 광고 목적의 추적이나 제3자 제공은 하지 않습니다.</p>',
+      '<p>"지금 듣는 곡"은 공유를 켜둔 친구에게만 보입니다. 설정에서 언제든 끌 수 있습니다.</p>',
+      '<p>설정의 "계정 삭제"를 통해 좋아요, 플레이리스트, 친구 관계를 포함한 모든 데이터를 삭제할 수 있습니다.</p>',
+      `<p>문의사항은 <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>로 연락해주세요.</p>`,
+    ].join(''),
+    terms: [
+      '<p>Swipee는 개인이 개발·운영하는 무료 서비스입니다. 서비스의 지속성이나 완전성을 보장하지 않으며, 예고 없이 내용이 변경되거나 중단될 수 있습니다.</p>',
+      '<p>무단 접근, 서비스 방해, 저작권으로 보호된 음원 데이터의 불법 복제·재배포 등 관련 법령이나 각 서비스 약관을 위반하는 행위는 금지됩니다.</p>',
+      '<p>Spotify를 연동해 이용하는 경우 Spotify 자체의 이용약관도 준수해야 합니다. 곡 데이터는 Deezer 공개 API를 통해 가져옵니다.</p>',
+      '<p>본 서비스는 "있는 그대로" 제공되며, 운영자는 서비스 이용으로 발생한 손해에 대해 책임을 지지 않습니다.</p>',
+      `<p>약관 관련 문의는 <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>로 부탁드립니다.</p>`,
+    ].join(''),
+    faq: [
+      {q:'Spotify 계정이 없어도 쓸 수 있나요?', a:'네, 닉네임만으로 시작할 수 있어요. 다만 플레이리스트 자동 생성이나 Spotify 재생 중인 곡을 친구와 공유하려면 Spotify 연동이 필요해요.'},
+      {q:'"후렴"은 어떻게 찾아내나요?', a:'곡의 정확한 후렴 구간을 분석하는 것은 아니에요. Deezer가 제공하는 30초 미리듣기(곡의 하이라이트 부분)를 재생합니다.'},
+      {q:'친구에게는 무엇이 보이나요?', a:'지금 듣고 있는 곡의 제목과 아티스트만 보여요. 좋아요 목록 전체나 과거 기록은 보이지 않아요. 설정에서 언제든 공유를 끌 수 있어요.'},
+      {q:'데이터를 전부 지우고 싶어요.', a:'설정의 "계정 삭제"에서 좋아요, 플레이리스트, 친구 관계를 포함해 모두 삭제할 수 있어요. 이 작업은 되돌릴 수 없어요.'},
+      {q:'무료인가요? 광고가 있나요?', a:'무료이고, 광고도 없어요.'},
+      {q:'버그 제보나 요청은 어디로 보내나요?', a:`${CONTACT_EMAIL}로 연락해주세요.`},
+    ],
+  },
+  zh: {
+    privacy: [
+      '<p>Swipee 会处理以下信息:昵称、连接 Spotify 后的账户信息(含令牌)、你喜欢的歌曲、创建的歌单、好友列表,以及你当前播放的歌曲信息。这些信息仅用于提供应用的功能(发现、音乐库、与好友分享)。</p>',
+      '<p>歌曲搜索与试听使用 Deezer 公开 API;连接 Spotify 后的歌单创建与播放状态获取使用 Spotify Web API。两者各自的条款与隐私政策同样适用。</p>',
+      '<p>数据保存在 Postgres 数据库中(未连接数据库时则保存在服务器文件中)。我们仅使用会话 Cookie 来维持登录状态,不进行广告追踪,也不会向第三方提供数据。</p>',
+      '<p>"正在播放"只会显示给开启了分享的好友。你可以随时在设置中关闭。</p>',
+      '<p>你可以在设置的"删除账户"中删除包括喜欢的歌曲、歌单、好友关系在内的所有数据。</p>',
+      `<p>如有疑问,请联系 <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>。</p>`,
+    ].join(''),
+    terms: [
+      '<p>Swipee 是由个人开发和运营的免费服务。我们不保证服务持续可用或完全无误,功能可能在不另行通知的情况下变更或终止。</p>',
+      '<p>禁止未经授权访问、干扰服务,或非法复制、再分发受版权保护的音频数据,以及任何违反法律法规或相关服务条款的行为。</p>',
+      '<p>如果你连接 Spotify,还需遵守 Spotify 自身的服务条款。歌曲数据通过 Deezer 公开 API 获取。</p>',
+      '<p>本服务按"现状"提供,运营者对因使用本服务而产生的任何损失不承担责任。</p>',
+      `<p>有关本条款的问题,请联系 <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>。</p>`,
+    ].join(''),
+    faq: [
+      {q:'没有 Spotify 账户也能用吗?', a:'可以,只需要昵称就能开始使用。但自动创建歌单,或与好友分享你在 Spotify 上正在播放的歌曲,需要先连接 Spotify。'},
+      {q:'"副歌"是怎么判断的?', a:'并不是精确分析歌曲的副歌片段,而是播放 Deezer 提供的 30 秒试听(通常是歌曲最抓耳的部分)。'},
+      {q:'好友能看到我的什么信息?', a:'只能看到你当前播放歌曲的标题和歌手,看不到你完整的收藏列表或历史记录。你可以随时在设置中关闭分享。'},
+      {q:'想删除全部数据怎么办?', a:'在设置的"删除账户"中,可以删除包括喜欢的歌曲、歌单、好友关系在内的所有数据,此操作无法撤销。'},
+      {q:'免费吗?有广告吗?', a:'完全免费,没有广告。'},
+      {q:'在哪里反馈问题或建议?', a:`请联系 ${CONTACT_EMAIL}。`},
+    ],
+  },
+  es: {
+    privacy: [
+      '<p>Swipee trata la siguiente información: tu apodo, los datos de tu cuenta de Spotify (incluidos los tokens) si la conectas, las canciones que te gustan, las playlists que creas, tu lista de amigos y lo que estás escuchando en este momento. Esto se usa únicamente para ofrecer las funciones de la app (descubrir, biblioteca y compartir con amigos).</p>',
+      '<p>La búsqueda y las vistas previas usan la API pública de Deezer; la creación de playlists y la obtención de lo que estás escuchando (con Spotify conectado) usan la API Web de Spotify. También se aplican los términos y la política de privacidad de cada servicio.</p>',
+      '<p>Los datos se guardan en una base de datos Postgres (o en un archivo del servidor si no hay base de datos conectada). Solo usamos una cookie de sesión para mantener tu inicio de sesión: sin rastreo publicitario ni envío de datos a terceros.</p>',
+      '<p>"Lo que estás escuchando" solo lo ven los amigos que tienen el compartir activado. Puedes desactivarlo cuando quieras desde Ajustes.</p>',
+      '<p>Puedes borrar todos tus datos —me gusta, playlists y conexiones de amigos— desde "Eliminar cuenta" en Ajustes.</p>',
+      `<p>¿Dudas? Escríbenos a <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>`,
+    ].join(''),
+    terms: [
+      '<p>Swipee es un servicio gratuito creado y operado por un desarrollador individual. No garantizamos un funcionamiento continuo o libre de errores, y las funciones pueden cambiar o dejar de estar disponibles sin previo aviso.</p>',
+      '<p>No está permitido acceder sin autorización, interrumpir el servicio, copiar o redistribuir ilegalmente datos de audio protegidos por derechos de autor, ni infringir de ningún otro modo la ley o los términos de los servicios vinculados.</p>',
+      '<p>Si conectas Spotify, también debes cumplir los propios Términos del Servicio de Spotify. Los datos de las canciones se obtienen a través de la API pública de Deezer.</p>',
+      '<p>El servicio se ofrece "tal cual" y el operador no se hace responsable de los daños derivados de su uso.</p>',
+      `<p>Para preguntas sobre estos términos, escribe a <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>`,
+    ].join(''),
+    faq: [
+      {q:'¿Puedo usarlo sin cuenta de Spotify?', a:'Sí, con un apodo ya puedes empezar. Conectar Spotify solo hace falta para crear playlists automáticamente o compartir con tus amigos lo que escuchas en Spotify.'},
+      {q:'¿Cómo se detecta el "estribillo"?', a:'No se analiza el estribillo exacto de la canción. Se reproduce el avance de 30 segundos de Deezer, que suele ser la parte más pegadiza.'},
+      {q:'¿Qué pueden ver mis amigos?', a:'Solo el título y el artista de lo que estás escuchando ahora, no tu lista completa de favoritos ni tu historial. Puedes desactivar esto cuando quieras desde Ajustes.'},
+      {q:'¿Cómo borro todos mis datos?', a:'Usa "Eliminar cuenta" en Ajustes para borrar todo: me gusta, playlists y conexiones de amigos. Esta acción no se puede deshacer.'},
+      {q:'¿Es gratis? ¿Tiene anuncios?', a:'Sí, es gratis y no tiene anuncios.'},
+      {q:'¿Dónde reporto un error o envío sugerencias?', a:`Escríbenos a ${CONTACT_EMAIL}.`},
+    ],
+  },
+};
 function detectLang() {
   try { const saved = localStorage.getItem('lang'); if (saved && LANGS[saved]) return saved } catch {}
   const nav = (navigator.language || 'ja').toLowerCase();
@@ -278,17 +417,32 @@ function renderSettings() {
   const el = $('#tab-settings');
   el.innerHTML = `<h3>${tr('settingsTitle')}</h3>
     <div class=bx><label class=mut style="flex:1">${tr('languageLabel')}<br><select id=setLang style="margin-top:6px;width:100%"></select></label></div>
+    <div class=bx><label class=mut style="flex:1">${tr('themeLabel')}<br><select id=setTheme style="margin-top:6px;width:100%">
+      <option value="system">${tr('themeSystem')}</option>
+      <option value="light">${tr('themeLight')}</option>
+      <option value="dark">${tr('themeDark')}</option>
+    </select></label></div>
     <div class=bx><input id=setName maxlength=20 value="${esc(me.name)}" placeholder="${tr('nicknameLabel')}"><button class="btn" id=setNameSave>${tr('saveBtn')}</button></div>
     <label class=mut><input type=checkbox id=setShare ${me.share ? 'checked' : ''}> ${tr('shareLabel')}</label>
     <h3>${tr('spotifyLabel')}</h3>
     <div class=row><div class=t><b>${me.spotify ? tr('spotifyConnected') : tr('spotifyNotConnected')}</b></div>${me.spotify ? `<button class="btn sm danger" id=spUnlink>${tr('unlinkBtn')}</button>` : `<a class="btn sm green" href="/auth/login">${tr('spotifyLinkText')}</a>`}</div>
     <div class=bx><button class="btn" id=logout>${tr('logoutBtn')}</button></div>
+    <h3>${tr('supportTitle')}</h3>
+    <div class=bx>
+      <button class="btn sm" id=goPrivacy>${tr('privacyTitle')}</button>
+      <button class="btn sm" id=goTerms>${tr('termsTitle')}</button>
+      <button class="btn sm" id=goFaq>${tr('faqTitle')}</button>
+      <button class="btn sm" id=goContact>${tr('contactTitle')}</button>
+    </div>
     <h3 style="color:#ff9db3">${tr('dangerZoneTitle')}</h3>
     <div class=bx><button class="btn danger" id=delAcct>${tr('deleteAccountBtn')}</button></div>`;
   const setLangSel = $('#setLang');
   setLangSel.innerHTML = SUPPORTED.map(c => `<option value="${c}">${LANGS[c].langName}</option>`).join('');
   setLangSel.value = lang;
   setLangSel.onchange = () => { setLang(setLangSel.value); $('#langSel').value = lang; renderSettings() };
+  const setThemeSel = $('#setTheme');
+  setThemeSel.value = getTheme();
+  setThemeSel.onchange = () => setTheme(setThemeSel.value);
   $('#setNameSave').onclick = async () => {
     const v = $('#setName').value.trim(); if (!v) return toast(trerr('name_required'));
     try { await api('/api/profile', {name: v}); me = await api('/api/me'); $('#who').textContent = me.name + (me.spotify ? tr('whoSpotify') : ''); toast(tr('savedToast')) } catch (e) { toast(trerr(e.message)) }
@@ -297,11 +451,31 @@ function renderSettings() {
   const spUnlink = $('#spUnlink');
   if (spUnlink) spUnlink.onclick = async () => { await api('/api/spotify/unlink'); me = await api('/api/me'); $('#who').textContent = me.name; renderSettings() };
   $('#logout').onclick = async () => { await api('/api/logout'); location.reload() };
+  $('#goPrivacy').onclick = () => renderLegal('privacy');
+  $('#goTerms').onclick = () => renderLegal('terms');
+  $('#goFaq').onclick = () => renderLegal('faq');
+  $('#goContact').onclick = () => renderLegal('contact');
   $('#delAcct').onclick = async () => {
     if (!confirm(tr('confirmDeleteAccount'))) return;
     await api('/api/account/delete');
     location.reload();
   };
+}
+
+function renderLegal(kind) {
+  const el = $('#tab-settings');
+  const titleKey = {privacy: 'privacyTitle', terms: 'termsTitle', faq: 'faqTitle', contact: 'contactTitle'}[kind];
+  let body;
+  if (kind === 'faq') {
+    const items = (LEGAL[lang] || LEGAL.ja).faq;
+    body = items.map(qa => `<div class=faq-item><b>${esc(qa.q)}</b><small>${esc(qa.a)}</small></div>`).join('');
+  } else if (kind === 'contact') {
+    body = `<p>${tr('contactBody')}</p><p><a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></p>`;
+  } else {
+    body = `<div class=legal-body>${(LEGAL[lang] || LEGAL.ja)[kind]}</div>`;
+  }
+  el.innerHTML = `<button class="btn sm" id=legalBack>${tr('backBtn')}</button><h3>${tr(titleKey)}</h3>${body}`;
+  $('#legalBack').onclick = () => renderSettings();
 }
 init();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
