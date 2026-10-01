@@ -235,10 +235,29 @@ async function init() {
 $('#demoForm').onsubmit = async e => { e.preventDefault(); try { await api('/api/login', {name: $('#name').value}); init() } catch (e) { toast(trerr(e.message)) } };
 
 // ---- 発見 ----
-async function loadFeed() { queue = await api(`/api/feed?genre=${$('#genre').value}&q=${encodeURIComponent($('#q').value)}`); next(false) }
+async function loadFeed() { $('#suggest').classList.add('hidden'); queue = await api(`/api/feed?genre=${$('#genre').value}&q=${encodeURIComponent($('#q').value)}`); next(false) }
 $('#genre').onchange = () => { $('#q').value = ''; loadFeed() }; $('#q').onchange = loadFeed;
+
+// ---- 検索候補(入力中にDeezerの候補をドロップダウン表示) ----
+let suggestTimer = null;
+$('#q').addEventListener('input', () => {
+  clearTimeout(suggestTimer);
+  const v = $('#q').value.trim(), box = $('#suggest');
+  if (v.length < 2) { box.classList.add('hidden'); box.innerHTML = ''; return }
+  suggestTimer = setTimeout(async () => {
+    let items; try { items = await api('/api/suggest?q=' + encodeURIComponent(v)) } catch { return }
+    if ($('#q').value.trim() !== v) return; // 入力が変わっていたら古い結果は捨てる
+    if (!items.length) { box.classList.add('hidden'); box.innerHTML = ''; return }
+    box.innerHTML = items.map(t => `<button type=button data-title="${esc(t.title)}"><img src="${esc(t.cover)}"><div><b>${esc(t.title)}</b><small>${esc(t.artist)}</small></div></button>`).join('');
+    box.classList.remove('hidden');
+    box.querySelectorAll('button').forEach(b => b.onclick = () => { $('#q').value = b.dataset.title; box.classList.add('hidden'); box.innerHTML = ''; loadFeed() });
+  }, 280);
+});
+document.addEventListener('click', e => { if (!e.target.closest('.searchwrap')) $('#suggest').classList.add('hidden') });
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { $('#suggest').classList.add('hidden'); $('#q').blur() } });
 function next(autoplay = true) {
-  swiping = false;
+  swiping = false; likedPending = false;
+  const likeBtn = $('#like'); likeBtn.classList.remove('pending'); likeBtn.textContent = '♥';
   const card = $('#card');
   card.style.transition = 'none'; card.style.transform = ''; card.style.opacity = ''; // 飛んでいった前のカードの見た目を新しいカードへ引き継がせない
   if (!queue.length) { card.innerHTML = `<p class=mut style="margin-top:160px">${tr('noTracksFound')}</p>`; void card.offsetHeight; card.style.transition = ''; audio.pause(); cur = null; return loadMore() }
@@ -257,19 +276,31 @@ audio.onended = () => play();
 audio.addEventListener('play', () => { $('#pause').textContent = '⏸' });
 audio.addEventListener('pause', () => { $('#pause').textContent = '▶' });
 $('#pause').onclick = () => { audio.paused ? play() : audio.pause() };
-async function like() { if (!cur) return; await api('/api/like', {track: cur}); me.likes.push(cur); toast(tr('likedAdded')); next() }
+async function like() { if (!cur) return; await api('/api/like', {track: cur}); if (!me.likes.some(t => t.id === cur.id)) me.likes.push(cur); toast(tr('likedAdded')); next() }
 
 // ---- スワイプ(指に追従して傾き、フリックでカードが飛んでいく) ----
-let swiping = false, history = [];
+let swiping = false, history = [], likedPending = false;
 function commitSwipe(dir) {
   if (!cur || swiping) return;
   swiping = true;
-  history.push(cur); if (history.length > 30) history.shift();
+  const alreadyLiked = dir > 0 && likedPending; // ♥を1回タップ済みで確定待ちの状態からの2回目
+  if (!alreadyLiked) { history.push(cur); if (history.length > 30) history.shift(); }
   const card = $('#card');
   card.style.transition = 'transform .3s ease, opacity .3s ease';
   card.style.transform = `translate(${dir * (innerWidth * 0.9 + 120)}px, -30px) rotate(${dir * 24}deg)`;
   card.style.opacity = '0';
-  setTimeout(() => { dir > 0 ? like() : next() }, 260);
+  setTimeout(() => { (dir > 0 && !alreadyLiked) ? like() : next() }, 260);
+}
+// ---- ♥タップ: 1回目はいいねだけ登録して留まる、2回目で次のカードへ ----
+function tapLike() {
+  if (!cur || swiping) return;
+  if (likedPending) { commitSwipe(1); return }
+  likedPending = true;
+  history.push(cur); if (history.length > 30) history.shift();
+  api('/api/like', {track: cur}).then(() => { if (!me.likes.some(t => t.id === cur.id)) me.likes.push(cur) }).catch(() => {});
+  const lb = $('#badgeLike'); if (lb) lb.style.opacity = 1;
+  const likeBtn = $('#like'); likeBtn.classList.add('pending'); likeBtn.textContent = '→';
+  toast(tr('likedAdded'));
 }
 // ---- やり直し(直前にスワイプした曲をもう一度カードに戻す) ----
 async function undoSwipe() {
@@ -313,8 +344,8 @@ $('#card').addEventListener('pointerdown', e => {
   card.classList.add('dragging');
   card.addEventListener('pointermove', dragMove); card.addEventListener('pointerup', dragEnd); card.addEventListener('pointercancel', dragEnd);
 });
-$('#like').onclick = () => commitSwipe(1); $('#skip').onclick = () => commitSwipe(-1); $('#replay').onclick = () => { audio.currentTime = 0; play() };
-document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight') commitSwipe(1); if (e.key === 'ArrowLeft') commitSwipe(-1); if (e.key === ' ') { e.preventDefault(); audio.paused ? play() : audio.pause() } if (e.key === 'z' || e.key === 'Z') undoSwipe(); });
+$('#like').onclick = tapLike; $('#skip').onclick = () => commitSwipe(-1); $('#replay').onclick = () => { audio.currentTime = 0; play() };
+document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight') tapLike(); if (e.key === 'ArrowLeft') commitSwipe(-1); if (e.key === ' ') { e.preventDefault(); audio.paused ? play() : audio.pause() } if (e.key === 'z' || e.key === 'Z') undoSwipe(); });
 
 // ---- タブ ----
 document.querySelectorAll('nav button').forEach(b => b.onclick = async () => {

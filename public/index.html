@@ -20,9 +20,9 @@
   <header><b>🎧 Swipee</b><span id="who"></span></header>
   <main>
     <section id="tab-discover">
-      <div class="filters"><select id="genre"></select><input id="q" data-i18n-ph="searchPh" placeholder="アーティスト・曲名で探す"></div>
+      <div class="filters"><select id="genre"></select><div class="searchwrap"><input id="q" autocomplete="off" data-i18n-ph="searchPh" placeholder="アーティスト・曲名で探す"><div id="suggest" class="suggest hidden"></div></div></div>
       <div id="card"></div>
-      <div class="actions"><button id="undo" class="round sm">↩</button><button id="skip" class="round">✕</button><button id="pause" class="round sm">⏸</button><button id="replay" class="round sm">↺</button><button id="like" class="round pink">♥</button></div>
+      <div class="actions"><button id="skip" class="round">✕</button><button id="undo" class="round sm">↩</button><button id="pause" class="round sm">⏸</button><button id="replay" class="round sm">⏮</button><button id="like" class="round pink">♥</button></div>
       <p class="hint" data-i18n="discoverHint">← スキップ / → いいね / スペース 再生・停止 (30秒プレビュー=サビ付近)</p>
     </section>
     <section id="tab-library" class="hidden"></section>

@@ -262,6 +262,11 @@ class H(BaseHTTPRequestHandler):
         if path == "/api/feed": return self.send(feed(u, qs.get("genre", ["0"])[0], qs.get("q", [""])[0].strip()))
         if path == "/api/preview":
             t = fresh_preview(qs.get("id", [""])[0]); return self.send(t or {"error": "not found"}, 200 if t else 404)
+        if path == "/api/suggest":
+            q = qs.get("q", [""])[0].strip()
+            if not q: return self.send([])
+            j = dz("/search?limit=6&q=" + urllib.parse.quote(q))
+            return self.send([slim(t) for t in (j or {}).get("data", []) if t.get("preview")])
         if path == "/api/friends":
             return self.send([friend_json(DB["users"][i]) for i in u["friends"] if i in DB["users"]])
         self.send({"error": "not found"}, 404)
