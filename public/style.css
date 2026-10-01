@@ -17,6 +17,7 @@ input,select{background:var(--card);border:1px solid var(--border);color:var(--f
 :root{--app-max:680px}
 #app{height:100%;display:flex;flex-direction:column}
 main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;max-width:var(--app-max);margin:0 auto;width:100%;padding:14px 16px 16px}
+main section>*:first-child{margin-top:0}
 nav{flex-shrink:0;display:flex;background:var(--surface2);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom);padding-left:max(0px,calc((100% - var(--app-max)) / 2));padding-right:max(0px,calc((100% - var(--app-max)) / 2))}
 nav button{flex:1;background:none;border:0;color:var(--mut);padding:14px;font-size:1rem;cursor:pointer}nav .on{color:var(--fg);font-weight:700}
 .filters{display:flex;gap:8px;margin-bottom:14px}.filters input{flex:1;min-width:0;width:100%}
