@@ -252,7 +252,8 @@ class H(BaseHTTPRequestHandler):
         f = ROOT / "public" / ("index.html" if path == "/" else path.lstrip("/"))
         if not f.resolve().is_relative_to((ROOT / "public").resolve()) or not f.is_file(): return self.send({"error": "not found"}, 404)
         b = f.read_bytes(); ct = {".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json"}.get(f.suffix, "application/octet-stream")
-        self.send_response(200); self.send_header("Content-Type", ct + ("" if ct.startswith("image") else "; charset=utf-8")); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+        cache = "no-cache" if f.suffix in (".html", ".js", ".css", ".webmanifest") else "public, max-age=86400"  # コード更新がブラウザキャッシュで古いまま残らないように
+        self.send_response(200); self.send_header("Content-Type", ct + ("" if ct.startswith("image") else "; charset=utf-8")); self.send_header("Cache-Control", cache); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
 
     def api_get(self, path, qs, u):
         if path == "/api/config": return self.send({"spotify_configured": bool(CID), "genres": GENRES})
