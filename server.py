@@ -97,17 +97,20 @@ def slim(t):
 
 # 値は翻訳キー。表示文言はクライアント側の辞書(app.js の I18N)で言語ごとに変換する。
 GENRES = {"0": "all", "16": "jpop", "132": "pop", "152": "rock", "116": "rap",
-          "165": "rnb", "113": "dance", "106": "electro", "85": "alternative", "129": "jazz", "chill": "chill"}
-# Deezerにはジャンルとしての"Chill"が無いため、公開プレイリストから引く(id: "Chill Hits")
+          "165": "rnb", "113": "dance", "106": "electro", "85": "alternative", "129": "jazz",
+          "chill": "chill", "viral": "viral"}
+# Deezerにはジャンルとしての"Chill"/"Viral"が無いため、公開プレイリストから引く
 CHILL_PLAYLIST = "1976454162"
+VIRAL_PLAYLIST = "4403076402"  # "TikTok Hits World"(Deezer公式編集プレイリスト)
+GENRE_PLAYLISTS = {"chill": CHILL_PLAYLIST, "viral": VIRAL_PLAYLIST}
 
 def feed(user, genre, q):
     tracks = []
     if q:
         j = dz("/search?limit=50&q=" + urllib.parse.quote(q)); tracks += (j or {}).get("data", [])
     else:
-        if genre == "chill":
-            j = dz(f"/playlist/{CHILL_PLAYLIST}/tracks?limit=100")
+        if genre in GENRE_PLAYLISTS:
+            j = dz(f"/playlist/{GENRE_PLAYLISTS[genre]}/tracks?limit=100")
         else:
             j = dz(f"/chart/{int(genre)}/tracks?limit=100")
         tracks += (j or {}).get("data", [])
