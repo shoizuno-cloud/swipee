@@ -526,12 +526,16 @@ function renderSettings() {
       <option value="dark">${tr('themeDark')}</option>
     </select></label></div>
     <div class=bx><input id=setName maxlength=20 value="${esc(me.name)}" placeholder="${tr('nicknameLabel')}"><button class="btn" id=setNameSave>${tr('saveBtn')}</button></div>
-    <label class=mut><input type=checkbox id=setShare ${me.share ? 'checked' : ''}> ${tr('shareLabel')}</label>
+    <div class=settingsGroup>
+      <label class=settingsRow><span>${tr('shareLabel')}</span><input type=checkbox class=toggle id=setShare ${me.share ? 'checked' : ''}></label>
+    </div>
     <h3>${tr('playbackSettingsTitle')}</h3>
-    <label class=mut style="display:block;margin-bottom:8px"><input type=checkbox id=setBgPlayback ${getPref('bgPlayback', true) ? 'checked' : ''}> ${tr('bgPlaybackLabel')}</label>
-    <label class=mut style="display:block;margin-bottom:8px"><input type=checkbox id=setAutoplayCards ${getPref('autoplayCards', true) ? 'checked' : ''}> ${tr('autoplayCardsLabel')}</label>
-    <label class=mut style="display:block;margin-bottom:8px"><input type=checkbox id=setHaptics ${getPref('haptics', true) ? 'checked' : ''}> ${tr('hapticsLabel')}</label>
-    <label class=mut style="display:block"><input type=checkbox id=setReduceMotion ${getPref('reduceMotion', false) ? 'checked' : ''}> ${tr('reduceMotionLabel')}</label>
+    <div class=settingsGroup>
+      <label class=settingsRow><span>${tr('bgPlaybackLabel')}</span><input type=checkbox class=toggle id=setBgPlayback ${getPref('bgPlayback', true) ? 'checked' : ''}></label>
+      <label class=settingsRow><span>${tr('autoplayCardsLabel')}</span><input type=checkbox class=toggle id=setAutoplayCards ${getPref('autoplayCards', true) ? 'checked' : ''}></label>
+      <label class=settingsRow><span>${tr('hapticsLabel')}</span><input type=checkbox class=toggle id=setHaptics ${getPref('haptics', true) ? 'checked' : ''}></label>
+      <label class=settingsRow><span>${tr('reduceMotionLabel')}</span><input type=checkbox class=toggle id=setReduceMotion ${getPref('reduceMotion', false) ? 'checked' : ''}></label>
+    </div>
     <h3>${tr('spotifyLabel')}</h3>
     <div class=row><div class=t><b>${me.spotify ? tr('spotifyConnected') : tr('spotifyNotConnected')}</b></div>${me.spotify ? `<button class="btn sm danger" id=spUnlink>${tr('unlinkBtn')}</button>` : `<a class="btn sm green" href="/auth/login">${tr('spotifyLinkText')}</a>`}</div>
     ${me.spotify ? '' : `<p class="betaNote" style="text-align:left">${tr('spotifyBetaNote')}</p>`}
