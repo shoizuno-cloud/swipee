@@ -375,6 +375,7 @@ document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') re
 document.querySelectorAll('nav button').forEach(b => b.onclick = async () => {
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('main section').forEach(s => s.classList.toggle('hidden', s.id !== 'tab-' + b.dataset.tab));
+  $('main').scrollTop = 0; // 前のタブのスクロール位置が新タブに残って表示がずれるのを防ぐ
   if (b.dataset.tab !== 'discover') audio.pause();
   if (b.dataset.tab === 'library') { me = await api('/api/me'); renderLibrary() }
   if (b.dataset.tab === 'friends') renderFriends()
