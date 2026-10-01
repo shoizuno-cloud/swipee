@@ -97,14 +97,20 @@ def slim(t):
 
 # 値は翻訳キー。表示文言はクライアント側の辞書(app.js の I18N)で言語ごとに変換する。
 GENRES = {"0": "all", "16": "jpop", "132": "pop", "152": "rock", "116": "rap",
-          "165": "rnb", "113": "dance", "106": "electro", "85": "alternative", "129": "jazz"}
+          "165": "rnb", "113": "dance", "106": "electro", "85": "alternative", "129": "jazz", "chill": "chill"}
+# Deezerにはジャンルとしての"Chill"が無いため、公開プレイリストから引く(id: "Chill Hits")
+CHILL_PLAYLIST = "1976454162"
 
 def feed(user, genre, q):
     tracks = []
     if q:
         j = dz("/search?limit=50&q=" + urllib.parse.quote(q)); tracks += (j or {}).get("data", [])
     else:
-        j = dz(f"/chart/{int(genre)}/tracks?limit=100"); tracks += (j or {}).get("data", [])
+        if genre == "chill":
+            j = dz(f"/playlist/{CHILL_PLAYLIST}/tracks?limit=100")
+        else:
+            j = dz(f"/chart/{int(genre)}/tracks?limit=100")
+        tracks += (j or {}).get("data", [])
         likes = user["likes"][-5:]
         for l in random.sample(likes, min(2, len(likes))):  # 好みに寄せる: いいねした曲のアーティストradio
             j = dz(f"/artist/{l['artist_id']}/radio"); tracks += (j or {}).get("data", [])
