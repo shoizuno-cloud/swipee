@@ -158,8 +158,8 @@ def sp_match(u, t):
     items = ((j or {}).get("tracks") or {}).get("items") or []
     return items[0]["uri"] if items else None
 
-def make_playlist(u, name, tracks, desc=None):
-    pl = {"id": secrets.token_hex(4), "name": name, "tracks": tracks, "ts": time.time(), "spotify_url": None, "spotify_id": None, "matched": 0, "pinned": False}
+def make_playlist(u, name, tracks, desc=None, public=False):
+    pl = {"id": secrets.token_hex(4), "name": name, "tracks": tracks, "ts": time.time(), "spotify_url": None, "spotify_id": None, "matched": 0, "pinned": False, "public": bool(public)}
     if u.get("spotify"):
         uris = [x for x in (sp_match(u, t) for t in tracks) if x]
         pl["matched"] = len(uris)
@@ -205,8 +205,11 @@ def me_json(u):
 def friend_json(f):
     now = f.get("now")
     live = bool(now) and time.time() - now["ts"] < (60 if now["source"] == "spotify" else 600)
+    pls = [{"id": p["id"], "name": p["name"], "tracks": p["tracks"], "spotify_url": p.get("spotify_url")}
+           for p in f["playlists"] if p.get("public")]
     return {"id": f["id"], "name": f["name"], "spotify": bool(f.get("spotify")),
-            "now": {"track": now["track"], "source": now["source"], "ago": int(time.time() - now["ts"])} if live else None}
+            "now": {"track": now["track"], "source": now["source"], "ago": int(time.time() - now["ts"])} if live else None,
+            "playlists": pls}
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -342,7 +345,13 @@ class H(BaseHTTPRequestHandler):
                         if r["id"] not in have and len(tracks) < int(body.get("size", 30)):
                             have.add(r["id"]); tracks.append(slim(r))
             if not tracks: return self.send({"error": "no_tracks_selected"}, 400)
-            return self.send(make_playlist(u, (body.get("name") or "Swipee Mix")[:60], tracks, body.get("desc")))
+            return self.send(make_playlist(u, (body.get("name") or "Swipee Mix")[:60], tracks, body.get("desc"), body.get("public")))
+        if path == "/api/playlist/visibility":
+            with LOCK:
+                pl = next((p for p in u["playlists"] if p["id"] == body.get("id")), None)
+                if not pl: return self.send({"error": "not_found"}, 404)
+                pl["public"] = bool(body.get("public")); save()
+            return self.send({"ok": True})
         if path == "/api/playlist/delete":
             with LOCK:
                 pl = next((p for p in u["playlists"] if p["id"] == body.get("id")), None)
