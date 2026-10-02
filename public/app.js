@@ -279,7 +279,7 @@ $('#q').addEventListener('input', () => {
     if (!items.length) { box.classList.add('hidden'); box.innerHTML = ''; return }
     box.innerHTML = items.map(t => `<button type=button data-title="${esc(t.title)}"><img src="${esc(t.cover)}"><div><b>${esc(t.title)}</b><small>${esc(t.artist)}</small></div></button>`).join('');
     box.classList.remove('hidden');
-    box.querySelectorAll('button').forEach(b => b.onclick = () => { $('#q').value = b.dataset.title; box.classList.add('hidden'); box.innerHTML = ''; loadFeed() });
+    box.querySelectorAll('button').forEach(b => b.onmousedown = e => { e.preventDefault(); $('#q').value = b.dataset.title; box.classList.add('hidden'); box.innerHTML = ''; loadFeed() }); // mousedownでpreventDefault: #qのblur(→change→loadFeedの早期実行)より先に選択を確定させる
   }, 280);
 });
 document.addEventListener('click', e => { if (!e.target.closest('.searchwrap')) $('#suggest').classList.add('hidden') });
@@ -386,7 +386,8 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = async () => {
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('main section').forEach(s => s.classList.toggle('hidden', s.id !== 'tab-' + b.dataset.tab));
   $('main').scrollTop = 0; // 前のタブのスクロール位置が新タブに残って表示がずれるのを防ぐ
-  if (b.dataset.tab !== 'discover') audio.pause();
+  if (b.dataset.tab === 'discover') { if (cur && audio.src !== cur.preview) { audio.src = cur.preview; play() } }
+  else audio.pause();
   if (b.dataset.tab === 'library') { me = await api('/api/me'); renderLibrary() }
   if (b.dataset.tab === 'friends') renderFriends()
   if (b.dataset.tab === 'settings') { me = await api('/api/me'); renderSettings() }
@@ -436,10 +437,13 @@ function wireSwipe(wrap, {onDelete, onPin} = {}) {
   if (del) del.onclick = () => { closeOpenSwipe(); onDelete() };
   if (pin) pin.onclick = () => { closeOpenSwipe(); onPin() };
 }
-const swipeRow = (inner, id, pinned) => `<div class="swiperow" data-id="${id}"><button class="swipe-action swipe-pin${pinned ? ' active' : ''}" title="${esc(pinned ? tr('unpinBtn') : tr('pinBtn'))}">📌</button>${inner}<button class="swipe-action swipe-del" title="${esc(tr('deleteBtn'))}">🗑</button></div>`;
+const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 1 5 5c0 3.5-5 10-5 10s-5-6.5-5-10a5 5 0 0 1 5-5z"/><circle cx="12" cy="7" r="2"/></svg>';
+const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/></svg>';
+const swipeRow = (inner, id, pinned) => `<div class="swiperow" data-id="${id}"><button class="swipe-action swipe-pin${pinned ? ' active' : ''}" title="${esc(pinned ? tr('unpinBtn') : tr('pinBtn'))}">${ICON_PIN}</button>${inner}<button class="swipe-action swipe-del" title="${esc(tr('deleteBtn'))}">${ICON_TRASH}</button></div>`;
 
 const CHEV = closed => `<svg class="chev${closed ? ' closed' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
 let libCollapse = {likes: false, playlists: false};
+let plExpanded = {};
 function renderLibrary() {
   openSwipeRow = null;
   const el = $('#tab-library');
@@ -453,11 +457,19 @@ function renderLibrary() {
     <h3 class="collapsible" data-collapse="likes">${tr('likedTitle', {n: me.likes.length})}${CHEV(libCollapse.likes)}</h3>
     <div class="collapseBody${libCollapse.likes ? ' hidden' : ''}">${likesSorted.length ? likesSorted.map(t => swipeRow(row({...t, title: (t.pinned ? '📌 ' : '') + t.title}, `<button class="btn sm" data-play=${t.id}>${tr('playSabiBtn')}</button><input type=checkbox data-id=${t.id} ${selected.has(t.id) ? 'checked' : ''}>`), t.id, t.pinned)).join('') : `<p class=mut>${tr('likedEmpty')}</p>`}</div>
     <h3 class="collapsible" data-collapse="playlists">${tr('playlistsTitle')}${CHEV(libCollapse.playlists)}</h3>
-    <div class="collapseBody${libCollapse.playlists ? ' hidden' : ''}">${plsSorted.map(p => swipeRow(`<div class=row><div class=t><b>${p.pinned ? '📌 ' : ''}${esc(p.name)}</b><small>${tr('trackCount', {n: p.tracks.length})}${p.spotify_url ? tr('matchedSuffix', {n: p.matched}) : ''}</small>${p.error ? `<small style="color:#f66">${esc(trerr(p.error))}</small>` : ''}</div>${p.spotify_url ? `<a class="btn sm" target=_blank href="${esc(p.spotify_url)}">${tr('openBtn')}</a>` : ''}</div>`, p.id, p.pinned)).join('') || `<p class=mut>${tr('playlistsEmpty')}</p>`}</div>`;
+    <div class="collapseBody${libCollapse.playlists ? ' hidden' : ''}">${plsSorted.map(p => swipeRow(`<div class=row><div class=t><b>${p.pinned ? '📌 ' : ''}${esc(p.name)}</b><small>${tr('trackCount', {n: p.tracks.length})}${p.spotify_url ? tr('matchedSuffix', {n: p.matched}) : ''}</small>${p.error ? `<small style="color:#f66">${esc(trerr(p.error))}</small>` : ''}</div><button class="btn sm" data-viewpl=${p.id}>${CHEV(!plExpanded[p.id])}</button>${p.spotify_url ? `<a class="btn sm" target=_blank href="${esc(p.spotify_url)}">${tr('openBtn')}</a>` : ''}</div>`, p.id, p.pinned) + (plExpanded[p.id] ? `<div class=plTracks>${p.tracks.map((t, i) => row(t, `<button class="btn sm" data-plplay="${p.id}:${i}">${tr('playSabiBtn')}</button>`)).join('')}</div>` : '')).join('') || `<p class=mut>${tr('playlistsEmpty')}</p>`}</div>`;
   el.querySelectorAll('.collapsible').forEach(h => h.onclick = () => { libCollapse[h.dataset.collapse] = !libCollapse[h.dataset.collapse]; renderLibrary() });
   el.querySelectorAll('[data-play]').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     const t = await api('/api/preview?id=' + b.dataset.play);
+    audio.src = t.preview; play();
+    toast(tr('nowPreviewToast', {title: t.title}));
+  });
+  el.querySelectorAll('[data-viewpl]').forEach(b => b.onclick = e => { e.stopPropagation(); plExpanded[b.dataset.viewpl] = !plExpanded[b.dataset.viewpl]; renderLibrary() });
+  el.querySelectorAll('[data-plplay]').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const [pid, idx] = b.dataset.plplay.split(':');
+    const t = me.playlists.find(p => p.id === pid)?.tracks[+idx]; if (!t) return;
     audio.src = t.preview; play();
     toast(tr('nowPreviewToast', {title: t.title}));
   });
@@ -479,7 +491,11 @@ function renderLibrary() {
       },
     });
   });
-  $('#all').onclick = () => { me.likes.forEach(t => selected.add(t.id)); renderLibrary() };
+  $('#all').onclick = () => {
+    const allSelected = me.likes.length > 0 && me.likes.every(t => selected.has(t.id));
+    if (allSelected) selected.clear(); else me.likes.forEach(t => selected.add(t.id));
+    renderLibrary();
+  };
   const delSel = $('#delSel');
   if (delSel) delSel.onclick = async () => {
     const ids = [...selected]; if (!ids.length) return toast(trerr('no_tracks_selected'));

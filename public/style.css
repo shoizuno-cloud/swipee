@@ -52,8 +52,12 @@ nav button{flex:1;background:none;border:0;color:var(--mut);padding:14px;font-si
 .betaNote{color:#e0a944;font-size:.8rem;margin:6px 0 0}
 .row{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:14px;padding:10px;margin-bottom:8px}
 .swiperow{position:relative;overflow:hidden;border-radius:14px;margin-bottom:8px}
+.plTracks{margin:-4px 0 10px 14px;padding-left:12px;border-left:2px solid var(--border)}
+.plTracks .row{margin-bottom:6px;padding:8px}
+.plTracks .row img{width:40px;height:40px}
 .swiperow .row{margin-bottom:0;position:relative;z-index:1;touch-action:pan-y;cursor:grab;will-change:transform}
-.swipe-action{position:absolute;top:0;bottom:0;width:76px;border:0;color:#fff;font-size:1.3rem;cursor:pointer;z-index:0}
+.swipe-action{position:absolute;top:0;bottom:0;width:76px;border:0;color:#fff;cursor:pointer;z-index:0;display:flex;align-items:center;justify-content:center}
+.swipe-action svg{width:22px;height:22px;pointer-events:none}
 .swipe-del{right:0;border-radius:0 14px 14px 0;background:#c0304a}
 .swipe-pin{left:0;border-radius:14px 0 0 14px;background:#2c6e49}
 .swipe-pin.active{background:#1f9d5c}
