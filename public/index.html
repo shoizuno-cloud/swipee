@@ -22,7 +22,7 @@
 <div id="app" class="hidden">
   <main>
     <section id="tab-discover">
-      <div class="filters"><select id="genre"></select><div class="searchwrap"><input id="q" autocomplete="off" data-i18n-ph="searchPh" placeholder="アーティスト・曲名で探す"><div id="suggest" class="suggest hidden"></div></div></div>
+      <div class="filters"><select id="genre"></select><div class="searchwrap"><input id="q" autocomplete="off" enterkeyhint="search" data-i18n-ph="searchPh" placeholder="アーティスト・曲名で探す"><button type="button" id="qClear" class="qclear hidden" aria-label="Clear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div id="suggest" class="suggest hidden"></div></div></div>
       <div id="card"></div>
       <div class="actions">
         <button id="skip" class="round">✕</button>

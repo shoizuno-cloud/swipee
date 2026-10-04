@@ -274,23 +274,26 @@ async function loadFeed(autoplay = false) {
   if (my !== loadSeq) return; // 後から始まった検索に追い越された古い結果は捨てる
   queue = list; next(autoplay, autoplay);
 }
-$('#genre').onchange = () => { $('#q').value = ''; feedSrc = null; loadFeed() };
+const syncClear = () => $('#qClear').classList.toggle('hidden', !$('#q').value);
+$('#genre').onchange = () => { $('#q').value = ''; syncClear(); feedSrc = null; loadFeed() };
+$('#qClear').onmousedown = e => e.preventDefault(); // 入力欄からフォーカスを奪わない(キーボードを出したまま打ち直せる)
+$('#qClear').onclick = () => { $('#q').value = ''; $('#q').dispatchEvent(new Event('input')); $('#q').focus() };
 
 // ---- 検索: 候補(アーティスト+曲)の選択・Enter確定 ----
 let suggestTimer = null;
 function closeSuggest() { const b = $('#suggest'); b.classList.add('hidden'); b.innerHTML = ''; sugItems = [] }
 function pickTrack(t) { // 選んだ曲そのものを、タップ操作の中で同期的に再生する(続きの候補は後から追加される)
-  closeSuggest(); $('#q').value = t.title; $('#q').blur();
+  closeSuggest(); $('#q').value = t.title; syncClear(); $('#q').blur();
   feedSrc = t.artist_id ? {artist: t.artist_id} : {q: `${t.artist} ${t.title}`}; shown = new Set(); ++loadSeq; // 続きは同じアーティストの人気曲(カバー/カラオケを避ける)
   queue = [t]; next(true, true);
 }
-function pickArtist(a) { closeSuggest(); $('#q').value = a.name; $('#q').blur(); feedSrc = {artist: a.id}; loadFeed(true) }
+function pickArtist(a) { closeSuggest(); $('#q').value = a.name; syncClear(); $('#q').blur(); feedSrc = {artist: a.id}; loadFeed(true) }
 function searchNow() { // Enter: 入力した語で検索し、先頭の曲を再生
   clearTimeout(suggestTimer); const v = $('#q').value.trim(); $('#q').blur();
   feedSrc = v ? {q: v} : null; loadFeed(!!v);
 }
 $('#q').addEventListener('input', () => {
-  clearTimeout(suggestTimer);
+  clearTimeout(suggestTimer); syncClear();
   const v = $('#q').value.trim();
   if (!v) { closeSuggest(); if (feedSrc) { feedSrc = null; loadFeed() } return } // 入力を消したらジャンルのフィードに戻す
   if (v.length < (/[^\x00-\x7F]/.test(v) ? 1 : 2)) { closeSuggest(); return }

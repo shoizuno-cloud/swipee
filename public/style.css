@@ -24,6 +24,9 @@ nav{flex-shrink:0;display:flex;background:var(--surface2);border-top:1px solid v
 nav button{flex:1;background:none;border:0;color:var(--mut);padding:14px;font-size:1rem;cursor:pointer}nav .on{color:var(--fg);font-weight:700}
 .filters{display:flex;gap:8px;margin-bottom:14px}.filters input{flex:1;min-width:0;width:100%}
 .searchwrap{position:relative;flex:1;min-width:0}
+#q{padding-right:40px}
+.qclear{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:26px;height:26px;padding:0;border:0;border-radius:50%;background:var(--border);color:var(--mut);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.qclear svg{width:12px;height:12px;pointer-events:none}.qclear:active{color:var(--fg)}
 .suggest{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;z-index:6;box-shadow:0 10px 30px #0006;max-height:280px;overflow-y:auto}
 .suggest button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;color:var(--fg);padding:9px 12px;text-align:left;cursor:pointer;font-size:.92rem}
 .suggest button:hover,.suggest button:focus{background:var(--border)}
