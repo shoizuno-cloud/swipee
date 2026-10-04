@@ -4,10 +4,11 @@
 永続化: DATABASE_URL があればPostgres(Render等のホスティング向け。再起動してもデータが消えない)、
        無ければローカルのdata.jsonファイル(手元で試す分には依存ライブラリ不要)。
 """
-import ssl, base64, json, os, random, secrets, threading, time, urllib.parse, urllib.request, urllib.error
+import ssl, base64, json, os, random, re, secrets, threading, time, urllib.parse, urllib.request, urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT = Path(__file__).parent
 PORT = int(os.environ.get("PORT", 8000))
@@ -104,10 +105,68 @@ CHILL_PLAYLIST = "1976454162"
 VIRAL_PLAYLIST = "4403076402"  # "TikTok Hits World"(Deezer公式編集プレイリスト)
 GENRE_PLAYLISTS = {"chill": CHILL_PLAYLIST, "viral": VIRAL_PLAYLIST}
 
+def playable(tracks, limit=40):
+    """プレビューのある曲だけを、順序を保ったまま重複(同ID/同タイトル同アーティスト)なしで返す。検索結果は関連度順を崩さない"""
+    out, ids, names = [], set(), set()
+    for t in tracks:
+        nk = ((t.get("title_short") or t["title"]).lower(), t["artist"]["name"].lower())
+        if t["id"] in ids or nk in names or not t.get("preview"): continue
+        ids.add(t["id"]); names.add(nk); out.append(slim(t))
+    return out[:limit]
+
+def version_key(t):
+    """リミックス/カバー/"- From THE FIRST TAKE"等の派生版を同じ曲として扱うためのキー"""
+    title = re.sub(r"[\(\[（【].*?[\)\]）】]", "", t.get("title_short") or t["title"])
+    title = re.split(r"\s[-–—]\s", title)[0]
+    return re.sub(r"\s+", " ", title).strip().lower(), t["artist"]["name"].lower()
+
+def suggest(q):
+    """入力中の候補: アーティスト(ファン数順) + 曲。Deezerのオートコンプリートと検索を並列に引いて合成する"""
+    quoted = urllib.parse.quote(q)
+    with ThreadPoolExecutor(2) as ex:
+        f_auto = ex.submit(dz, "/search/autocomplete?limit=20&q=" + quoted)
+        f_art = ex.submit(dz, "/search/artist?limit=50&q=" + quoted)
+        auto, arts = f_auto.result() or {}, f_art.result() or {}
+    ql = q.lower()
+    cand = {}
+    for a in ((auto.get("artists") or {}).get("data") or []) + (arts.get("data") or []):
+        n = a["name"].lower()
+        if ql in n and (n not in cand or a.get("nb_fan", 0) > cand[n].get("nb_fan", 0)): cand[n] = a
+    top = [a for a in sorted(cand.values(), key=lambda a: -a.get("nb_fan", 0)) if a.get("nb_fan", 0) >= 100][:2]
+    out = [{"kind": "artist", "id": a["id"], "name": a["name"], "picture": a.get("picture_small") or a.get("picture_medium", "")} for a in top]
+    tracks = []
+    if top and top[0]["name"].lower().startswith(ql):  # アーティスト名を打っている最中: その人の人気曲を先頭に
+        tracks += ((dz(f"/artist/{top[0]['id']}/top?limit=5") or {}).get("data") or [])
+    tracks += (auto.get("tracks") or {}).get("data") or (dz("/search?limit=20&q=" + quoted) or {}).get("data", [])
+    seen, n = set(), 0
+    for t in tracks:
+        if not t.get("preview"): continue
+        k = version_key(t)
+        if k in seen: continue
+        seen.add(k); out.append({"kind": "track", **slim(t)}); n += 1
+        if n >= 7: break
+    return out
+
+SUG_CACHE = {}
+def suggest_cached(q, ttl=600):
+    """同じ入力は10分間使い回す(打ち直し・消して再入力でのDeezer呼び出しと待ち時間を減らす)。プレビューURLの有効期限より十分短い"""
+    k, now = q.lower(), time.time()
+    hit = SUG_CACHE.get(k)
+    if hit and now - hit[0] < ttl: return hit[1]
+    res = suggest(q)
+    if len(SUG_CACHE) > 500: SUG_CACHE.clear()
+    if res: SUG_CACHE[k] = (now, res)  # 一時的な失敗(空)は覚えない
+    return res
+
+def artist_feed(aid):
+    j = dz(f"/artist/{int(aid)}/top?limit=50")
+    return playable((j or {}).get("data", []))
+
 def feed(user, genre, q):
     tracks = []
     if q:
-        j = dz("/search?limit=50&q=" + urllib.parse.quote(q)); tracks += (j or {}).get("data", [])
+        j = dz("/search?limit=50&q=" + urllib.parse.quote(q))
+        return playable((j or {}).get("data", []))
     else:
         if genre in GENRE_PLAYLISTS:
             j = dz(f"/playlist/{GENRE_PLAYLISTS[genre]}/tracks?limit=100")
@@ -266,14 +325,16 @@ class H(BaseHTTPRequestHandler):
         if path == "/api/config": return self.send({"spotify_configured": bool(CID), "genres": GENRES})
         if not u: return self.send({"error": "unauth"}, 401)
         if path == "/api/me": return self.send(me_json(u))
-        if path == "/api/feed": return self.send(feed(u, qs.get("genre", ["0"])[0], qs.get("q", [""])[0].strip()))
+        if path == "/api/feed":
+            if qs.get("artist"):
+                try: return self.send(artist_feed(qs["artist"][0]))
+                except ValueError: return self.send({"error": "not_found"}, 400)
+            return self.send(feed(u, qs.get("genre", ["0"])[0], qs.get("q", [""])[0].strip()))
         if path == "/api/preview":
             t = fresh_preview(qs.get("id", [""])[0]); return self.send(t or {"error": "not found"}, 200 if t else 404)
         if path == "/api/suggest":
             q = qs.get("q", [""])[0].strip()
-            if not q: return self.send([])
-            j = dz("/search?limit=6&q=" + urllib.parse.quote(q))
-            return self.send([slim(t) for t in (j or {}).get("data", []) if t.get("preview")])
+            return self.send(suggest_cached(q) if q else [])
         if path == "/api/friends":
             return self.send([friend_json(DB["users"][i]) for i in u["friends"] if i in DB["users"]])
         self.send({"error": "not found"}, 404)
