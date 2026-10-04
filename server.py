@@ -19,6 +19,7 @@ REDIRECT = os.environ.get("SPOTIFY_REDIRECT_URI", f"http://127.0.0.1:{PORT}/auth
 SCOPES = "user-read-currently-playing user-read-playback-state playlist-modify-private playlist-modify-public"
 DB_FILE = ROOT / "data.json"
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")  # 設定すると /api/admin/feedback?token=... でフィードバック一覧を読める
 LOCK = threading.RLock()
 
 # ---------- 永続化(Postgres優先、無ければJSONファイル) ----------
@@ -96,14 +97,47 @@ def slim(t):
             "artist_id": t["artist"]["id"], "cover": (t.get("album") or {}).get("cover_medium", ""),
             "preview": t.get("preview", ""), "link": t.get("link", "")}
 
-# 値は翻訳キー。表示文言はクライアント側の辞書(app.js の I18N)で言語ごとに変換する。
-GENRES = {"0": "all", "16": "jpop", "132": "pop", "152": "rock", "116": "rap",
-          "165": "rnb", "113": "dance", "106": "electro", "85": "alternative", "129": "jazz",
-          "chill": "chill", "viral": "viral"}
-# Deezerにはジャンルとしての"Chill"/"Viral"が無いため、公開プレイリストから引く
-CHILL_PLAYLIST = "1976454162"
-VIRAL_PLAYLIST = "4403076402"  # "TikTok Hits World"(Deezer公式編集プレイリスト)
-GENRE_PLAYLISTS = {"chill": CHILL_PLAYLIST, "viral": VIRAL_PLAYLIST}
+# 値は翻訳キー。表示文言はクライアント側の辞書(app.js の LANGS)で言語ごとに変換する。
+GENRES = {"0": "all", "jpop": "jpop", "kpop": "kpop", "pop": "pop", "rock": "rock", "rap": "rap", "rnb": "rnb",
+          "dance": "dance", "electro": "electro", "alternative": "alternative", "jazz": "jazz", "chill": "chill", "viral": "viral"}
+# Deezerのジャンル別チャートは別ジャンルの曲が混ざる(例: "Asian Music"は実質K-POPのみ、RockにMichael Jackson等)ため、
+# ジャンルの編集部プレイリストから曲を引く。複数あれば合算する。
+GENRE_PLAYLISTS = {
+    "jpop": [6049895724, 13238096463, 11911629401],  # Top J-Pop / 2024 J-Pop / 2023 J-pop (Deezer Japan Editor)
+    "kpop": [4096400722, 12244134951],               # Top K-Pop / New K-Pop (Deezer K-Pop Editor)
+    "rock": [752286631, 1419215845],                 # Rock Hits / 2000s Rock (Deezer Rock Editor)
+    "rap": [1677006641, 1996494362],                 # Hot Urban / Rap Bangers (Deezer Rap Editor)
+    "rnb": [1999466402, 5411628342],                 # R&B Hits / 2010s R&B (Deezer R&B Editor)
+    "dance": [706093725, 2249258602],                # Global Dance Hits / New Dance (Deezer Dance & EDM Editor)
+    "electro": [1902101402],                         # Electronic Hits (Deezer Dance & EDM Editor)
+    "alternative": [7966514882],                     # Alt Trends (Deezer Alternative Editor)
+    "jazz": [1615514485, 5898527324],                # Jazz Essentials / Jazz Club (Deezer Jazz & Blues Editor)
+    "chill": [1976454162],                           # Chill Hits
+    "viral": [4403076402],                           # TikTok Hits World
+}
+# プレイリストが取得できない(削除された等)場合や、編集部プレイリストが無いジャンルはチャートにフォールバック
+GENRE_CHART = {"pop": 132, "kpop": 16, "rock": 152, "rap": 116, "rnb": 165, "dance": 113, "electro": 106, "alternative": 85, "jazz": 129}
+
+PL_CACHE = {}
+def dz_cached(path, ttl=300):
+    """プレイリスト/チャートは5分キャッシュ(フィード取得のたびにDeezerへ並列リクエストが飛ぶのを避ける)。プレビューURLの有効期限より短い"""
+    hit = PL_CACHE.get(path)
+    if hit and time.time() - hit[0] < ttl: return hit[1]
+    j = dz(path)
+    if j:
+        if len(PL_CACHE) > 200: PL_CACHE.clear()
+        PL_CACHE[path] = (time.time(), j)
+    return j
+
+def genre_tracks(genre):
+    paths = [f"/playlist/{pid}/tracks?limit=100" for pid in GENRE_PLAYLISTS.get(genre, [])]
+    if not paths:
+        paths = [f"/chart/{GENRE_CHART.get(genre, int(genre) if genre.isdigit() else 0)}/tracks?limit=100"]
+    with ThreadPoolExecutor(len(paths)) as ex: res = list(ex.map(dz_cached, paths))
+    tracks = [t for r in res for t in (r or {}).get("data", [])]
+    if not tracks and genre in GENRE_CHART:
+        tracks = (dz_cached(f"/chart/{GENRE_CHART[genre]}/tracks?limit=100") or {}).get("data", [])
+    return tracks
 
 def playable(tracks, limit=40):
     """プレビューのある曲だけを、順序を保ったまま重複(同ID/同タイトル同アーティスト)なしで返す。検索結果は関連度順を崩さない"""
@@ -168,14 +202,11 @@ def feed(user, genre, q):
         j = dz("/search?limit=50&q=" + urllib.parse.quote(q))
         return playable((j or {}).get("data", []))
     else:
-        if genre in GENRE_PLAYLISTS:
-            j = dz(f"/playlist/{GENRE_PLAYLISTS[genre]}/tracks?limit=100")
-        else:
-            j = dz(f"/chart/{int(genre)}/tracks?limit=100")
-        tracks += (j or {}).get("data", [])
-        likes = user["likes"][-5:]
-        for l in random.sample(likes, min(2, len(likes))):  # 好みに寄せる: いいねした曲のアーティストradio
-            j = dz(f"/artist/{l['artist_id']}/radio"); tracks += (j or {}).get("data", [])
+        tracks += genre_tracks(genre)
+        if genre == "0":  # 好みに寄せるのは「すべて」だけ(ジャンル指定時にradioを混ぜると別ジャンルの曲が入るため)
+            likes = user["likes"][-5:]
+            for l in random.sample(likes, min(2, len(likes))):  # いいねした曲のアーティストradio
+                j = dz(f"/artist/{l['artist_id']}/radio"); tracks += (j or {}).get("data", [])
     seen = {l["id"] for l in user["likes"]}
     out, ids = [], set()
     for t in tracks:
@@ -323,6 +354,10 @@ class H(BaseHTTPRequestHandler):
 
     def api_get(self, path, qs, u):
         if path == "/api/config": return self.send({"spotify_configured": bool(CID), "genres": GENRES})
+        if path == "/api/admin/feedback":
+            tok = qs.get("token", [""])[0]
+            if not ADMIN_TOKEN or not secrets.compare_digest(tok, ADMIN_TOKEN): return self.send({"error": "not found"}, 404)
+            return self.send(DB.get("feedback", [])[::-1])
         if not u: return self.send({"error": "unauth"}, 401)
         if path == "/api/me": return self.send(me_json(u))
         if path == "/api/feed":
@@ -383,6 +418,8 @@ class H(BaseHTTPRequestHandler):
                 for fid in u["friends"]:
                     if fid in DB["users"]: DB["users"][fid]["friends"] = [x for x in DB["users"][fid]["friends"] if x != u["id"]]
                 DB["sessions"] = {sid: uid for sid, uid in DB["sessions"].items() if uid != u["id"]}
+                for f in DB.get("feedback", []):  # 退会時は投稿者を特定できる情報だけ消し、内容は改善のため残す
+                    if f.get("uid") == u["id"]: f.update(uid=None, name="", contact="")
                 del DB["users"][u["id"]]; save()
                 return self.send({"ok": True}, headers={"Set-Cookie": "sid=; Path=/; Max-Age=0"})
             if path == "/api/friends/add":
@@ -397,6 +434,20 @@ class H(BaseHTTPRequestHandler):
                 u["friends"] = [x for x in u["friends"] if x != fid]
                 if fid in DB["users"]: DB["users"][fid]["friends"] = [x for x in DB["users"][fid]["friends"] if x != u["id"]]
                 save(); return self.send({"ok": True})
+        if path == "/api/feedback":
+            msg = (body.get("message") or "").strip()[:2000]
+            if len(msg) < 3: return self.send({"error": "message_required"}, 400)
+            now = time.time()
+            with LOCK:
+                fb = DB.setdefault("feedback", [])
+                if sum(1 for f in fb if f.get("uid") == u["id"] and now - f["ts"] < 3600) >= 5: return self.send({"error": "rate_limited"}, 429)
+                item = {"id": secrets.token_hex(4), "ts": now, "uid": u["id"], "name": u["name"],
+                        "category": body.get("category") if body.get("category") in ("idea", "bug", "other") else "other",
+                        "message": msg, "contact": (body.get("contact") or "").strip()[:200], "lang": str(body.get("lang") or "")[:8],
+                        "ua": self.headers.get("User-Agent", "")[:200]}
+                fb.append(item); save()
+            print("FEEDBACK", json.dumps(item, ensure_ascii=False), flush=True)  # Renderのログからも読める
+            return self.send({"ok": True})
         if path == "/api/playlist":
             tracks = body.get("tracks") or []
             if body.get("mix"):  # 選んだ曲に似た曲を足して作る
