@@ -32,7 +32,7 @@ const LANGS = {
 };
 const SUPPORTED = Object.keys(LANGS);
 const LOCALE_TAG = {ja:'ja-JP', en:'en-US', ko:'ko-KR', zh:'zh-CN', es:'es-ES', fr:'fr-FR'};
-const CONTACT_EMAIL = 'swipee@outlook.jp';
+const CONTACT_EMAIL = 'dev-jp@outlook.jp';
 
 // ---- プライバシーポリシー・利用規約・FAQ ----
 const LEGAL = {
