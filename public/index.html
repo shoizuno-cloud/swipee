@@ -2,17 +2,17 @@
 <html lang="ja"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script>try{var t=localStorage.getItem('theme');if(t&&t!=='system')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
-<title>Swipee</title>
+<title>Musiwipe</title>
 <link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0f0f14">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="icon" href="/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black" id="statusBarMeta"><meta name="apple-mobile-web-app-title" content="Swipee"><link rel="stylesheet" href="/style.css">
+<meta name="apple-mobile-web-app-status-bar-style" content="black" id="statusBarMeta"><meta name="apple-mobile-web-app-title" content="Musiwipe"><link rel="stylesheet" href="/style.css">
 <script>try{var t=localStorage.getItem('theme')||'system';var dark=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.getElementById('statusBarMeta').content=dark?'black':'default'}catch(e){}</script>
 </head>
 <body>
 <select id="langSel" aria-label="Language"></select>
 <div id="login" class="screen hidden">
-  <h1>🎧 Swipee</h1>
+  <h1>🎧 Musiwipe</h1>
   <p data-i18n="tagline">サビだけ聴いて、好きな曲に出会う。<br>友達が今聴いている曲も見れる。</p>
   <a id="spLogin" class="btn green" href="/auth/login" data-i18n="spotifyStart">Spotifyで始める</a>
   <div class="betaNote" id="spBetaNote" data-i18n="spotifyBetaNote">※Spotify連携は現在テスター限定で提供中です</div>

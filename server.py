@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Swipee — 依存ライブラリなし(Python標準のみ)のサーバー。
+"""Musiwipe — 依存ライブラリなし(Python標準のみ)のサーバー。
 発見フィード: Deezer公開API(30秒プレビュー=サビ付近) / 連携: Spotify(プレイリスト作成・再生中取得)
 永続化: DATABASE_URL があればPostgres(Render等のホスティング向け。再起動してもデータが消えない)、
        無ければローカルのdata.jsonファイル(手元で試す分には依存ライブラリ不要)。
@@ -253,7 +253,7 @@ def make_playlist(u, name, tracks, desc=None, public=False):
     if u.get("spotify"):
         uris = [x for x in (sp_match(u, t) for t in tracks) if x]
         pl["matched"] = len(uris)
-        s, j = sp_api(u, "POST", "/me/playlists", {"name": name, "public": False, "description": desc or "Created with Swipee"})
+        s, j = sp_api(u, "POST", "/me/playlists", {"name": name, "public": False, "description": desc or "Created with Musiwipe"})
         if s in (200, 201) and uris:
             pl["spotify_url"] = j["external_urls"]["spotify"]; pl["spotify_id"] = j["id"]
             for i in range(0, len(uris), 100):
@@ -457,7 +457,7 @@ class H(BaseHTTPRequestHandler):
                         if r["id"] not in have and len(tracks) < int(body.get("size", 30)):
                             have.add(r["id"]); tracks.append(slim(r))
             if not tracks: return self.send({"error": "no_tracks_selected"}, 400)
-            return self.send(make_playlist(u, (body.get("name") or "Swipee Mix")[:60], tracks, body.get("desc"), body.get("public")))
+            return self.send(make_playlist(u, (body.get("name") or "Musiwipe Mix")[:60], tracks, body.get("desc"), body.get("public")))
         if path == "/api/playlist/visibility":
             with LOCK:
                 pl = next((p for p in u["playlists"] if p["id"] == body.get("id")), None)
