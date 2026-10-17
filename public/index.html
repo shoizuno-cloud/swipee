@@ -2,34 +2,35 @@
 <html lang="ja"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script>try{var t=localStorage.getItem('theme');if(t&&t!=='system')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
-<title>Musiwipe</title>
+<title>Fang Beats</title>
 <link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0f0f14">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="icon" href="/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black" id="statusBarMeta"><meta name="apple-mobile-web-app-title" content="Musiwipe"><link rel="stylesheet" href="/style.css">
+<meta name="apple-mobile-web-app-status-bar-style" content="black" id="statusBarMeta"><meta name="apple-mobile-web-app-title" content="Fang Beats"><link rel="stylesheet" href="/style.css">
 <script>try{var t=localStorage.getItem('theme')||'system';var dark=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.getElementById('statusBarMeta').content=dark?'black':'default'}catch(e){}</script>
 </head>
 <body>
 <select id="langSel" aria-label="Language"></select>
 <div id="login" class="screen hidden">
-  <h1>🎧 Musiwipe</h1>
+  <h1><img class="logo" src="/icon-192.png" alt="" width="48" height="48">Fang Beats</h1>
   <p data-i18n="tagline">サビだけ聴いて、好きな曲に出会う。<br>友達が今聴いている曲も見れる。</p>
   <a id="spLogin" class="btn green" href="/auth/login" data-i18n="spotifyStart">Spotifyで始める</a>
   <div class="betaNote" id="spBetaNote" data-i18n="spotifyBetaNote">※Spotify連携は現在テスター限定で提供中です</div>
   <div class="or" data-i18n="orTry">または(Spotify連携なしで試す)</div>
-  <form id="demoForm"><input id="name" data-i18n-ph="nickname" placeholder="ニックネーム" maxlength="20"><button class="btn" data-i18n="start">はじめる</button></form>
+  <form id="demoForm"><input id="name" data-i18n-ph="nickname" data-i18n-aria="nickname" placeholder="ニックネーム" maxlength="20" autocomplete="nickname"><button class="btn" data-i18n="start">はじめる</button></form>
 </div>
 <div id="app" class="hidden">
   <main>
+    <h1 class="sr-only">Fang Beats</h1>
     <section id="tab-discover">
-      <div class="filters"><select id="genre"></select><div class="searchwrap"><input id="q" autocomplete="off" enterkeyhint="search" data-i18n-ph="searchPh" placeholder="アーティスト・曲名で探す"><button type="button" id="qClear" class="qclear hidden" aria-label="Clear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div id="suggest" class="suggest hidden"></div></div></div>
+      <div class="filters"><select id="genre" data-i18n-aria="ariaGenre"></select><div class="searchwrap"><input id="q" type="text" autocomplete="off" enterkeyhint="search" aria-autocomplete="list" aria-controls="suggest" data-i18n-ph="searchPh" data-i18n-aria="searchPh" placeholder="アーティスト・曲名で探す"><button type="button" id="qClear" class="qclear hidden" data-icon="x" data-i18n-aria="ariaClear"></button><div id="suggest" class="suggest hidden"></div></div></div>
       <div id="card"></div>
       <div class="actions">
-        <button id="skip" class="round">✕</button>
-        <button id="undo" class="iconbtn" aria-label="undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h9a5 5 0 0 1 0 10h-2"/><path d="M7 10l4-4M7 10l4 4"/></svg></button>
-        <button id="pause" class="iconbtn" aria-label="play-pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg></button>
-        <button id="replay" class="iconbtn" aria-label="replay"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="2.5" height="14" rx="1"/><path d="M19 5v14L8.5 12z"/></svg></button>
-        <button id="like" class="round pink">♥</button>
+        <button id="skip" class="round" data-icon="x" data-i18n-aria="skipBadge"></button>
+        <button id="undo" class="iconbtn" data-icon="undo-2" data-i18n-aria="ariaUndo"></button>
+        <button id="pause" class="iconbtn" data-icon="play" data-i18n-aria="ariaPlayPause"></button>
+        <button id="replay" class="iconbtn" data-icon="skip-back" data-i18n-aria="ariaReplay"></button>
+        <button id="like" class="round pink" data-icon="heart" data-i18n-aria="likeBadge"></button>
       </div>
       <p class="hint" data-i18n="discoverHint">← スキップ / → いいね / スペース 再生・停止 (30秒プレビュー=サビ付近)</p>
     </section>
@@ -37,12 +38,17 @@
     <section id="tab-friends" class="hidden"></section>
     <section id="tab-settings" class="hidden"></section>
   </main>
-  <nav><button data-tab="discover" class="on" data-i18n="navDiscover">発見</button><button data-tab="library" data-i18n="navLibrary">ライブラリ</button><button data-tab="friends" data-i18n="navFriends">友達</button><button data-tab="settings" data-i18n="navSettings">設定</button></nav>
+  <nav data-i18n-aria="ariaMainNav">
+    <button data-tab="discover" class="on" aria-current="page"><span class="ind" data-icon="compass"></span><span class="lbl" data-i18n="navDiscover">発見</span></button>
+    <button data-tab="library"><span class="ind" data-icon="list-music"></span><span class="lbl" data-i18n="navLibrary">ライブラリ</span></button>
+    <button data-tab="friends"><span class="ind" data-icon="users"></span><span class="lbl" data-i18n="navFriends">友達</span></button>
+    <button data-tab="settings"><span class="ind" data-icon="settings"></span><span class="lbl" data-i18n="navSettings">設定</span></button>
+  </nav>
 </div>
-<audio id="audio"></audio><div id="toast"></div>
-<div id="a2hsModal" class="modal hidden">
+<audio id="audio"></audio><div id="toast" role="status" aria-live="polite"></div>
+<div id="a2hsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="a2hsTitle">
   <div class="modal-card">
-    <h3 data-i18n="a2hsTitle">ホーム画面に追加しよう</h3>
+    <h3 id="a2hsTitle" data-i18n="a2hsTitle">ホーム画面に追加しよう</h3>
     <p data-i18n="a2hsBody">アプリのように全画面で、サクッと開けるようになります。</p>
     <div id="a2hsSteps" class="modal-steps"></div>
     <button class="btn green" id="a2hsClose" data-i18n="a2hsGotIt">わかった</button>
