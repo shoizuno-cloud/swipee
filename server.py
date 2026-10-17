@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Musiwipe — 依存ライブラリなし(Python標準のみ)のサーバー。
+"""Fang Beats — 依存ライブラリなし(Python標準のみ)のサーバー。
 発見フィード: Deezer公開API(30秒プレビュー=サビ付近) / 連携: Spotify(プレイリスト作成・再生中取得)
 永続化: DATABASE_URL があればPostgres(Render等のホスティング向け。再起動してもデータが消えない)、
        無ければローカルのdata.jsonファイル(手元で試す分には依存ライブラリ不要)。
@@ -253,7 +253,7 @@ def make_playlist(u, name, tracks, desc=None, public=False):
     if u.get("spotify"):
         uris = [x for x in (sp_match(u, t) for t in tracks) if x]
         pl["matched"] = len(uris)
-        s, j = sp_api(u, "POST", "/me/playlists", {"name": name, "public": False, "description": desc or "Created with Musiwipe"})
+        s, j = sp_api(u, "POST", "/me/playlists", {"name": name, "public": False, "description": desc or "Created with Fang Beats"})
         if s in (200, 201) and uris:
             pl["spotify_url"] = j["external_urls"]["spotify"]; pl["spotify_id"] = j["id"]
             for i in range(0, len(uris), 100):
@@ -348,7 +348,7 @@ class H(BaseHTTPRequestHandler):
             return self.api_get(path, qs, u)
         f = ROOT / "public" / ("index.html" if path == "/" else path.lstrip("/"))
         if not f.resolve().is_relative_to((ROOT / "public").resolve()) or not f.is_file(): return self.send({"error": "not found"}, 404)
-        b = f.read_bytes(); ct = {".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json"}.get(f.suffix, "application/octet-stream")
+        b = f.read_bytes(); ct = {".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json", ".txt": "text/plain"}.get(f.suffix, "application/octet-stream")
         cache = "no-cache" if f.suffix in (".html", ".js", ".css", ".webmanifest") else "public, max-age=86400"  # コード更新がブラウザキャッシュで古いまま残らないように
         self.send_response(200); self.send_header("Content-Type", ct + ("" if ct.startswith("image") else "; charset=utf-8")); self.send_header("Cache-Control", cache); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
 
@@ -457,7 +457,7 @@ class H(BaseHTTPRequestHandler):
                         if r["id"] not in have and len(tracks) < int(body.get("size", 30)):
                             have.add(r["id"]); tracks.append(slim(r))
             if not tracks: return self.send({"error": "no_tracks_selected"}, 400)
-            return self.send(make_playlist(u, (body.get("name") or "Musiwipe Mix")[:60], tracks, body.get("desc"), body.get("public")))
+            return self.send(make_playlist(u, (body.get("name") or "Fang Beats Mix")[:60], tracks, body.get("desc"), body.get("public")))
         if path == "/api/playlist/visibility":
             with LOCK:
                 pl = next((p for p in u["playlists"] if p["id"] == body.get("id")), None)

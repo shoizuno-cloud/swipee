@@ -1,4 +1,4 @@
-# Musiwipe
+# Fang Beats
 
 サビだけ聴いて曲を発見(スワイプでいいね/スキップ) → ♥でライブラリ → プレイリスト生成(Spotifyに作成) → 友達の再生中を見る。日本語・英語・韓国語・中国語・スペイン語に対応。
 
@@ -51,3 +51,7 @@ SPOTIFY_REDIRECT_URI=https://xxxx.trycloudflare.com/auth/callback SPOTIFY_CLIENT
 **データ永続化について**: `DATABASE_URL`(Renderが自動接続する無料Postgres)があれば友達・いいね・プレイリストはそちらに保存され、サーバーがスリープしても消えない。ただしRenderの無料Postgresは**作成から30日で失効**するため、期限が来たら新しいデータベースを作り直してRenderの環境変数を張り替える必要がある(データは移行されない)。`DATABASE_URL`が無い場合は従来通り`data.json`に保存するが、Render無料プランはファイルシステムが揮発性なので、15分アクセスがないとスリープ時にデータが消える。
 
 <!-- auto-deploy test 2026-10-01T11:22:50Z -->
+
+## クレジット / ライセンス
+- アイコン: [Lucide](https://lucide.dev) (ISC License、一部Feather由来のMIT)。ライセンス全文は `public/licenses.txt`(アプリ内の設定画面からもリンク)。
+- デザイン方針: デジタル庁デザインシステム / Apple HIG / Material Design 3 を参照(コントラスト比・タップ領域44px・フォーカス表示・ステートレイヤー・ナビゲーションバー等)。
