@@ -540,11 +540,12 @@ function renderLibrary() {
   const likesSorted = me.likes.slice().reverse().sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
   const plsSorted = me.playlists.slice().sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
   const allSel = me.likes.length > 0 && me.likes.every(t => selected.has(t.id));
+  const anySel = me.likes.some(t => selected.has(t.id));
   el.innerHTML = `<h3>${tr('libCreateTitle')}</h3>
     <div class=bx><input id=plName aria-label="${esc(tr('plNamePh'))}" placeholder="${tr('plNamePh')}" value="${esc(tr('plDefaultPrefix'))} ${new Date().toLocaleDateString(LOCALE_TAG[lang])}"></div>
     <label class="mut chk"><input type=checkbox id=mix checked> ${tr('mixLabel')}</label>
     <label class="mut chk"><input type=checkbox id=plPublic> ${tr('publicLabel')}</label>
-    <div class=bx><button class="btn green" id=mk>${me.spotify ? tr('mkBtnSpotify') : tr('mkBtnLocal')}</button><button class="btn sm" id=all>${tr(allSel ? 'deselectAllBtn' : 'selectAllBtn')}</button>${me.likes.length ? `<button class="btn sm danger" id=delSel>${tr('deleteSelectedBtn')}</button>` : ''}</div>
+    <div class=bx><button class="btn green" id=mk>${me.spotify ? tr('mkBtnSpotify') : tr('mkBtnLocal')}</button><button class="btn sm" id=all>${tr(allSel ? 'deselectAllBtn' : 'selectAllBtn')}</button>${me.likes.length ? `<button class="btn sm danger${anySel ? '' : ' hidden'}" id=delSel>${tr('deleteSelectedBtn')}</button>` : ''}</div>
     ${me.spotify ? '' : `<p class=hint style="text-align:left">${tr('notLinkedHint')} <a href="/auth/login">${tr('spotifyLinkText')}</a></p>`}
     <h3 class="collapsible" data-collapse="likes" role="button" tabindex="0" aria-expanded="${!libCollapse.likes}">${tr('likedTitle', {n: me.likes.length})}${CHEV(libCollapse.likes)}</h3>
     <div class="collapseBody${libCollapse.likes ? ' hidden' : ''}">${likesSorted.length ? likesSorted.map(t => swipeRow(row(t, `<button class="btn sm" data-play=${t.id}>${ICONS.play}${tr('playSabiBtn')}</button><input type=checkbox data-id=${t.id} aria-label="${esc(t.title)}" ${selected.has(t.id) ? 'checked' : ''}>`, t.pinned), t.id, t.pinned)).join('') : `<p class=mut>${tr('likedEmpty')}</p>`}</div>
@@ -569,7 +570,7 @@ function renderLibrary() {
     audio.src = t.preview; play();
     toast(tr('nowPreviewToast', {title: t.title}));
   });
-  el.querySelectorAll('[data-id]').forEach(c => { if (c.matches('input[type=checkbox]')) c.onchange = () => { c.checked ? selected.add(+c.dataset.id) : selected.delete(+c.dataset.id); $('#all').textContent = tr(me.likes.every(t => selected.has(t.id)) ? 'deselectAllBtn' : 'selectAllBtn') } });
+  el.querySelectorAll('[data-id]').forEach(c => { if (c.matches('input[type=checkbox]')) c.onchange = () => { c.checked ? selected.add(+c.dataset.id) : selected.delete(+c.dataset.id); $('#all').textContent = tr(me.likes.every(t => selected.has(t.id)) ? 'deselectAllBtn' : 'selectAllBtn'); $('#delSel')?.classList.toggle('hidden', !me.likes.some(t => selected.has(t.id))) } });
   el.querySelectorAll('.swiperow').forEach(w => {
     const isTrack = me.likes.some(t => String(t.id) === w.dataset.id);
     const kind = isTrack ? 'track' : 'playlist';
