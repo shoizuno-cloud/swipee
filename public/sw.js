@@ -1,4 +1,4 @@
-const V = 'fangbeats-v1', SHELL = ['/', '/style.css', '/app.js', '/manifest.webmanifest', '/icon-192.png'];
+const V = 'fangbeats-v2', SHELL = ['/', '/style.css', '/app.js', '/analytics.js', '/manifest.webmanifest', '/icon-192.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL))); self.skipWaiting() });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => clients.claim())) });
 self.addEventListener('fetch', e => {
