@@ -288,6 +288,7 @@ async function init() {
   try { me = await api('/api/me') } catch { return showLogin() }
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden'); $('#langSel').classList.add('hidden');
   loadFeed();
+  track('app_open', {lang});
   if (new URLSearchParams(location.search).get('welcome') === '1') { // Spotifyで新規登録した直後
     showA2HS();
     window.history.replaceState(null, '', location.pathname);
@@ -295,7 +296,7 @@ async function init() {
 }
 $('#demoForm').onsubmit = async e => {
   e.preventDefault();
-  try { await api('/api/login', {name: $('#name').value}); await init(); showA2HS() } catch (e) { toast(trerr(e.message)) }
+  try { await api('/api/login', {name: $('#name').value}); track('login', {method: 'demo'}); await init(); showA2HS() } catch (e) { toast(trerr(e.message)) }
 };
 
 // ---- 発見 ----
@@ -396,7 +397,7 @@ audio.onended = () => play();
 audio.addEventListener('play', () => { $('#pause').innerHTML = ICONS.pause });
 audio.addEventListener('pause', () => { $('#pause').innerHTML = ICONS.play });
 $('#pause').onclick = () => { audio.paused ? play() : audio.pause() };
-async function like() { if (!cur) return; await api('/api/like', {track: cur}); if (!me.likes.some(t => t.id === cur.id)) me.likes.push(cur); toast(tr('likedAdded')); next() }
+async function like() { if (!cur) return; await api('/api/like', {track: cur}); track('swipe_like', {track_id: cur.id, artist: cur.artist, via: 'swipe'}); if (!me.likes.some(t => t.id === cur.id)) me.likes.push(cur); toast(tr('likedAdded')); next() }
 
 // ---- スワイプ(指に追従して傾き、フリックでカードが飛んでいく) ----
 let swiping = false, history = [], likedPending = false;
@@ -404,6 +405,7 @@ function commitSwipe(dir) {
   if (!cur || swiping) return;
   swiping = true;
   haptic(dir > 0 ? 20 : 12);
+  if (dir < 0) track('swipe_skip', {track_id: cur.id, artist: cur.artist});
   const alreadyLiked = dir > 0 && likedPending; // ♥を1回タップ済みで確定待ちの状態からの2回目
   if (!alreadyLiked) { history.push(cur); if (history.length > 30) history.shift(); }
   const card = $('#card');
@@ -419,6 +421,7 @@ function tapLike() {
   haptic(20);
   likedPending = true;
   history.push(cur); if (history.length > 30) history.shift();
+  track('swipe_like', {track_id: cur.id, artist: cur.artist, via: 'tap'});
   api('/api/like', {track: cur}).then(() => { if (!me.likes.some(t => t.id === cur.id)) me.likes.push(cur) }).catch(() => {});
   const lb = $('#badgeLike'); if (lb) lb.style.opacity = 1;
   const likeBtn = $('#like'); likeBtn.classList.add('pending'); likeBtn.innerHTML = ICONS['arrow-right'];
@@ -429,6 +432,7 @@ async function undoSwipe() {
   if (swiping) return;
   const last = history.pop();
   if (!last) return toast(tr('nothingToUndo'));
+  track('swipe_undo');
   if (me.likes.some(t => t.id === last.id)) { // いいね済みなら取り消す
     try { await api('/api/unlike', {id: last.id}); me.likes = me.likes.filter(t => t.id !== last.id) } catch {}
   }
@@ -473,6 +477,7 @@ document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') re
 document.querySelectorAll('nav button').forEach(b => b.onclick = async () => {
   document.querySelectorAll('nav button').forEach(x => { x.classList.toggle('on', x === b); if (x === b) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current') });
   document.querySelectorAll('main section').forEach(s => s.classList.toggle('hidden', s.id !== 'tab-' + b.dataset.tab));
+  track('tab_view', {tab: b.dataset.tab});
   $('main').scrollTop = 0; // 前のタブのスクロール位置が新タブに残って表示がずれるのを防ぐ
   if (b.dataset.tab === 'discover') { if (cur && audio.src !== cur.preview) { audio.src = cur.preview; play() } }
   else audio.pause();
@@ -604,7 +609,7 @@ function renderLibrary() {
   $('#mk').onclick = async () => {
     const tr2 = me.likes.filter(t => selected.has(t.id)); if (!tr2.length) return toast(trerr('no_tracks_selected'));
     $('#mk').disabled = true; $('#mk').textContent = tr('creating');
-    try { const p = await api('/api/playlist', {name: $('#plName').value, tracks: tr2, mix: $('#mix').checked, public: $('#plPublic').checked, size: 30, desc: tr('plDesc')}); toast(p.spotify_url ? tr('createdSpotify') : tr('createdLocal')); selected.clear() } catch (e) { toast(trerr(e.message)) }
+    try { const p = await api('/api/playlist', {name: $('#plName').value, tracks: tr2, mix: $('#mix').checked, public: $('#plPublic').checked, size: 30, desc: tr('plDesc')}); track('playlist_create', {track_count: tr2.length, mix: $('#mix').checked, public: $('#plPublic').checked, spotify: !!p.spotify_url}); toast(p.spotify_url ? tr('createdSpotify') : tr('createdLocal')); selected.clear() } catch (e) { toast(trerr(e.message)) }
     me = await api('/api/me'); renderLibrary();
   };
 }
@@ -623,8 +628,8 @@ async function renderFriends() {
         : `<div class=row><div class=t><b>${esc(f.name)}</b><small>${tr('notPlaying')}</small></div></div>`).join('') || `<p class=mut>${tr('friendsEmpty')}</p>`}
       <h3>${tr('friendPlaylistsTitle')}</h3>
       ${friendPls.length ? friendPls.map(p => `<div class=row><div class=t><b>${esc(p.name)}</b><small>${tr('trackCount', {n: p.tracks.length})} · ${esc(p.ownerName)}</small></div><button class="btn sm" data-fviewpl="${p.key}" aria-label="${esc(p.name)}" aria-expanded="${!!plExpanded[p.key]}">${CHEV(!plExpanded[p.key])}</button>${p.spotify_url ? `<a class="btn sm" target=_blank href="${esc(p.spotify_url)}">${tr('openBtn')}</a>` : ''}</div>${plExpanded[p.key] ? `<div class=plTracks>${p.tracks.map((t, i) => row(t, `<button class="btn sm" data-fplplay="${p.key}|${i}">${ICONS.play}${tr('playSabiBtn')}</button>`)).join('')}</div>` : ''}`).join('') : `<p class=mut>${tr('playlistsEmpty')}</p>`}`;
-    $('#copy').onclick = () => { navigator.clipboard?.writeText(me.code); toast(tr('copied')) };
-    $('#add').onclick = async () => { try { const r = await api('/api/friends/add', {code: $('#code').value}); toast(tr('friendAdded', {name: r.name})); draw() } catch (e) { toast(trerr(e.message)) } };
+    $('#copy').onclick = () => { navigator.clipboard?.writeText(me.code); track('friend_code_copied'); toast(tr('copied')) };
+    $('#add').onclick = async () => { try { const r = await api('/api/friends/add', {code: $('#code').value}); track('friend_added'); toast(tr('friendAdded', {name: r.name})); draw() } catch (e) { toast(trerr(e.message)) } };
     el.querySelectorAll('[data-pv]').forEach(b => b.onclick = async () => { const t = await api('/api/preview?id=' + b.dataset.pv); audio.src = t.preview; play(); toast(tr('nowPreviewToast', {title: t.title})) });
     el.querySelectorAll('[data-lk]').forEach(b => b.onclick = async () => { const t = await api('/api/preview?id=' + b.dataset.lk); await api('/api/like', {track: t}); toast(tr('likedAdded')) });
     el.querySelectorAll('[data-fviewpl]').forEach(b => b.onclick = () => { plExpanded[b.dataset.fviewpl] = !plExpanded[b.dataset.fviewpl]; draw() });
@@ -718,7 +723,7 @@ function renderFeedback() {
   $('#fbSend').onclick = async () => {
     const message = $('#fbMsg').value.trim(); if (message.length < 3) return toast(trerr('message_required'));
     $('#fbSend').disabled = true;
-    try { await api('/api/feedback', {category: $('#fbCat').value, message, contact: $('#fbContact').value.trim(), lang}); toast(tr('fbSent')); renderSettings() }
+    try { await api('/api/feedback', {category: $('#fbCat').value, message, contact: $('#fbContact').value.trim(), lang}); track('feedback_sent', {category: $('#fbCat').value}); toast(tr('fbSent')); renderSettings() }
     catch (e) { toast(trerr(e.message)); $('#fbSend').disabled = false }
   };
 }
